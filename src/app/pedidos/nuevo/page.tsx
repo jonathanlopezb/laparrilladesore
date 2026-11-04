@@ -573,164 +573,171 @@ export default function PosNuevoPedidoPage() {
 
       {/* Modal de Cobro / Checkout */}
       {isCheckoutOpen && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-[#171717] border border-zinc-800 rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-[#171717] border border-zinc-800 rounded-t-2xl sm:rounded-2xl max-w-md w-full max-h-[92vh] sm:max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-200 sm:duration-150">
+            {/* Cabecera fija */}
+            <div className="flex items-center justify-between p-4 sm:p-5 pb-3 border-b border-zinc-800 shrink-0">
               <h3 className="font-bold text-white text-base flex items-center gap-2">
                 <CreditCard className="h-5 w-5 text-amber-500" />
                 Registrar Pago y Confirmar
               </h3>
               <button
                 onClick={() => setIsCheckoutOpen(false)}
-                className="h-7 w-7 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400"
+                className="h-8 w-8 rounded-full bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-zinc-400"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            {/* Resumen */}
-            <div className="p-3 rounded-xl bg-zinc-900 border border-zinc-800 flex justify-between items-center">
-              <div>
-                <span className="text-xs text-zinc-400">Cliente</span>
-                <p className="text-sm font-bold text-white">{customer.name}</p>
+            {/* Contenido con Scroll para móviles */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+              {/* Resumen */}
+              <div className="p-3 rounded-xl bg-zinc-900 border border-zinc-800 flex justify-between items-center">
+                <div>
+                  <span className="text-xs text-zinc-400">Cliente</span>
+                  <p className="text-sm font-bold text-white">{customer.name}</p>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs text-zinc-400">Monto Total</span>
+                  <p className="text-xl font-black text-amber-400">
+                    {formatCOP(cartTotal)}
+                  </p>
+                </div>
               </div>
-              <div className="text-right">
-                <span className="text-xs text-zinc-400">Monto Total</span>
-                <p className="text-xl font-black text-amber-400">
-                  {formatCOP(cartTotal)}
-                </p>
+
+              {/* Método de Pago */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-zinc-300">
+                  Método de Pago
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {(
+                    [
+                      { id: "cash", label: "💵 Efectivo" },
+                      { id: "nequi", label: "🟣 Nequi" },
+                      { id: "daviplata", label: "🔴 Daviplata" },
+                      { id: "breb", label: "⚡ Bre-B" },
+                      { id: "credit", label: "📋 Crédito (Fiado)" },
+                    ] as const
+                  ).map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => {
+                        setPaymentMethod(m.id);
+                        if (m.id === "credit" && !creditDebtorName && customer.name !== "Cliente General") {
+                          setCreditInfo(customer.name, creditAuthorizedBy || "Jonathan");
+                        }
+                      }}
+                      className={`p-2.5 rounded-xl text-xs font-bold border transition ${
+                        paymentMethod === m.id
+                          ? "bg-amber-600 text-white border-amber-500 shadow-md shadow-amber-600/30"
+                          : "bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-white"
+                      } ${m.id === "credit" ? "sm:col-span-2" : ""}`}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Si es crédito: Nombre del deudor y quién autorizó */}
+              {paymentMethod === "credit" && (
+                <div className="space-y-3 p-3.5 rounded-xl bg-amber-950/30 border border-amber-900/60 animate-in fade-in">
+                  <div className="flex items-center gap-2 text-amber-400 text-xs font-bold">
+                    <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
+                    <span>Venta a Crédito / Fiado (Cuenta por cobrar)</span>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs text-zinc-300 font-semibold">
+                      Nombre del Deudor / Cliente *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Nombre completo a quien se le fía"
+                      value={creditDebtorName || (customer.name !== "Cliente General" ? customer.name : "")}
+                      onChange={(e) => setCreditInfo(e.target.value, creditAuthorizedBy || "Jonathan")}
+                      className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs text-zinc-300 font-semibold">
+                      ¿Quién autorizó el crédito? *
+                    </label>
+                    <select
+                      value={creditAuthorizedBy || "Jonathan"}
+                      onChange={(e) => setCreditInfo(creditDebtorName || customer.name, e.target.value)}
+                      className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2.5 text-xs font-bold text-white focus:outline-none focus:border-amber-500 cursor-pointer"
+                    >
+                      <option value="Jonathan">Jonathan</option>
+                      <option value="Sore">Sore</option>
+                    </select>
+                  </div>
+
+                  <p className="text-[11px] text-amber-300/80">
+                    Esta orden se guardará con saldo pendiente y la autorización seleccionada.
+                  </p>
+                </div>
+              )}
+
+              {/* Si es efectivo: Valor recibido y cambio */}
+              {paymentMethod === "cash" && (
+                <div className="space-y-3 p-3 rounded-xl bg-black/40 border border-zinc-800">
+                  <div className="space-y-1">
+                    <label className="text-xs text-zinc-300">
+                      Efectivo Recibido (COP)
+                    </label>
+                    <input
+                      type="number"
+                      placeholder={`Ej: ${cartTotal}`}
+                      value={amountReceivedCOP || ""}
+                      onChange={(e) => setAmountReceived(Number(e.target.value))}
+                      className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-sm font-bold text-white focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-zinc-400">Vueltos / Cambio:</span>
+                    <span className="text-base font-extrabold text-emerald-400">
+                      {formatCOP(changeCOP)}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Si es Bre-B, Nequi o Daviplata */}
+              {(paymentMethod === "nequi" || paymentMethod === "daviplata" || paymentMethod === "breb") && (
+                <div className="p-3 rounded-xl bg-zinc-900/60 border border-zinc-800 text-xs text-zinc-300 flex items-center justify-between">
+                  <span>Transferencia {paymentMethod.toUpperCase()}:</span>
+                  <span className="font-extrabold text-amber-400">{formatCOP(cartTotal)}</span>
+                </div>
+              )}
+
+              {/* Observaciones generales */}
+              <div className="space-y-1">
+                <label className="text-xs text-zinc-300">Notas del Pedido</label>
+                <textarea
+                  rows={2}
+                  placeholder="Observaciones de empaque, entrega, etc."
+                  value={orderNotes}
+                  onChange={(e) => setOrderNotes(e.target.value)}
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-amber-500"
+                />
               </div>
             </div>
 
-            {/* Método de Pago */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-zinc-300">
-                Método de Pago
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {(
-                  [
-                    { id: "cash", label: "💵 Efectivo" },
-                    { id: "nequi", label: "🟣 Nequi" },
-                    { id: "daviplata", label: "🔴 Daviplata" },
-                    { id: "breb", label: "⚡ Bre-B" },
-                    { id: "credit", label: "📋 Crédito (Fiado)" },
-                  ] as const
-                ).map((m) => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => {
-                      setPaymentMethod(m.id);
-                      if (m.id === "credit" && !creditDebtorName && customer.name !== "Cliente General") {
-                        setCreditInfo(customer.name, creditAuthorizedBy);
-                      }
-                    }}
-                    className={`p-2.5 rounded-xl text-xs font-bold border transition ${
-                      paymentMethod === m.id
-                        ? "bg-amber-600 text-white border-amber-500 shadow-md shadow-amber-600/30"
-                        : "bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-white"
-                    } ${m.id === "credit" ? "sm:col-span-2" : ""}`}
-                  >
-                    {m.label}
-                  </button>
-                ))}
-              </div>
+            {/* Botón inferior fijo */}
+            <div className="p-4 border-t border-zinc-800 bg-[#141414] shrink-0">
+              <button
+                onClick={handleFinishOrder}
+                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-green-600 text-white font-extrabold text-sm shadow-xl shadow-emerald-600/30 hover:brightness-110 transition active:scale-98"
+              >
+                ✓ Confirmar e Imprimir Comanda
+              </button>
             </div>
-
-            {/* Si es crédito: Nombre del deudor y quién autorizó */}
-            {paymentMethod === "credit" && (
-              <div className="space-y-3 p-3.5 rounded-xl bg-amber-950/30 border border-amber-900/60 animate-in fade-in">
-                <div className="flex items-center gap-2 text-amber-400 text-xs font-bold">
-                  <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
-                  <span>Venta a Crédito / Fiado (Cuenta por cobrar)</span>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs text-zinc-300 font-semibold">
-                    Nombre del Deudor / Cliente *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Nombre completo a quien se le fía"
-                    value={creditDebtorName || (customer.name !== "Cliente General" ? customer.name : "")}
-                    onChange={(e) => setCreditInfo(e.target.value, creditAuthorizedBy)}
-                    className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs text-zinc-300 font-semibold">
-                    ¿Quién autorizó el crédito? *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ej: Jonathan López (Administrador)"
-                    value={creditAuthorizedBy}
-                    onChange={(e) => setCreditInfo(creditDebtorName || customer.name, e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500"
-                  />
-                </div>
-
-                <p className="text-[11px] text-amber-300/80">
-                  Esta orden se guardará con saldo pendiente y el responsable asignado.
-                </p>
-              </div>
-            )}
-
-            {/* Si es efectivo: Valor recibido y cambio */}
-            {paymentMethod === "cash" && (
-              <div className="space-y-3 p-3 rounded-xl bg-black/40 border border-zinc-800">
-                <div className="space-y-1">
-                  <label className="text-xs text-zinc-300">
-                    Efectivo Recibido (COP)
-                  </label>
-                  <input
-                    type="number"
-                    placeholder={`Ej: ${cartTotal}`}
-                    value={amountReceivedCOP || ""}
-                    onChange={(e) => setAmountReceived(Number(e.target.value))}
-                    className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-sm font-bold text-white focus:outline-none focus:border-amber-500"
-                  />
-                </div>
-
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-zinc-400">Vueltos / Cambio:</span>
-                  <span className="text-base font-extrabold text-emerald-400">
-                    {formatCOP(changeCOP)}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* Si es Bre-B, Nequi o Daviplata */}
-            {(paymentMethod === "nequi" || paymentMethod === "daviplata" || paymentMethod === "breb") && (
-              <div className="p-3 rounded-xl bg-zinc-900/60 border border-zinc-800 text-xs text-zinc-300 flex items-center justify-between">
-                <span>Transferencia {paymentMethod.toUpperCase()}:</span>
-                <span className="font-extrabold text-amber-400">{formatCOP(cartTotal)}</span>
-              </div>
-            )}
-
-            {/* Observaciones generales */}
-            <div className="space-y-1">
-              <label className="text-xs text-zinc-300">Notas del Pedido</label>
-              <textarea
-                rows={2}
-                placeholder="Observaciones de empaque, entrega, etc."
-                value={orderNotes}
-                onChange={(e) => setOrderNotes(e.target.value)}
-                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-amber-500"
-              />
-            </div>
-
-            <button
-              onClick={handleFinishOrder}
-              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-green-600 text-white font-extrabold text-sm shadow-xl shadow-emerald-600/30 hover:brightness-110 transition active:scale-98"
-            >
-              ✓ Confirmar e Imprimir Comanda
-            </button>
           </div>
         </div>
       )}
