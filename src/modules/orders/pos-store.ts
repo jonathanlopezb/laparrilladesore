@@ -68,93 +68,9 @@ interface PosState {
 
 const INITIAL_CUSTOMERS: CustomerSummary[] = [
   { name: "Cliente General", phone: "", address: "" },
-  { name: "Carlos Gómez", phone: "310 987 6543", address: "Calle 45 # 12-30" },
-  { name: "Ana Pérez", phone: "300 123 4567", address: "Carrera 7 # 85-10" },
-  { name: "María Torres", phone: "320 555 1212", address: "Mesa 2" },
 ];
 
-const INITIAL_ORDERS: OrderRecord[] = [
-  {
-    id: "ord-125",
-    orderNumber: "PED-000125",
-    createdAt: "10:45 AM",
-    channel: "table",
-    tableNumber: "5",
-    customer: { name: "Cliente General" },
-    lines: [
-      {
-        sku: "ESP-001",
-        name: "Parrillada Especial",
-        unitPriceCOP: 20000,
-        quantity: 2,
-        notes: "Bien asada la chuleta",
-        subtotalCOP: 40000,
-      },
-      {
-        sku: "CHO-001",
-        name: "Chorizo",
-        unitPriceCOP: 10000,
-        quantity: 1,
-        subtotalCOP: 10000,
-      },
-    ],
-    subtotalCOP: 50000,
-    discountCOP: 0,
-    totalCOP: 50000,
-    paymentMethod: "nequi",
-    amountReceivedCOP: 50000,
-    changeCOP: 0,
-    status: "DELIVERED",
-  },
-  {
-    id: "ord-124",
-    orderNumber: "PED-000124",
-    createdAt: "10:32 AM",
-    channel: "takeaway",
-    customer: { name: "Ana Pérez", phone: "300 123 4567" },
-    lines: [
-      {
-        sku: "COM-001",
-        name: "Pollo + Chorizo",
-        unitPriceCOP: 15000,
-        quantity: 2,
-        notes: "Sin ensalada",
-        subtotalCOP: 30000,
-      },
-    ],
-    subtotalCOP: 30000,
-    discountCOP: 0,
-    totalCOP: 30000,
-    paymentMethod: "cash",
-    amountReceivedCOP: 50000,
-    changeCOP: 20000,
-    status: "IN_PREPARATION",
-  },
-  {
-    id: "ord-123",
-    orderNumber: "PED-000123",
-    createdAt: "10:20 AM",
-    channel: "delivery",
-    deliveryAddress: "Calle 45 # 12-30",
-    customer: { name: "Carlos Gómez", phone: "310 987 6543" },
-    lines: [
-      {
-        sku: "ESP-001",
-        name: "Parrillada Especial",
-        unitPriceCOP: 20000,
-        quantity: 3,
-        subtotalCOP: 60000,
-      },
-    ],
-    subtotalCOP: 60000,
-    discountCOP: 0,
-    totalCOP: 60000,
-    paymentMethod: "transfer",
-    amountReceivedCOP: 60000,
-    changeCOP: 0,
-    status: "CONFIRMED",
-  },
-];
+const INITIAL_ORDERS: OrderRecord[] = [];
 
 export const usePosStore = create<PosState>((set, get) => ({
   cart: [],
@@ -263,7 +179,7 @@ export const usePosStore = create<PosState>((set, get) => ({
     const subtotal = cart.reduce((acc, i) => acc + i.subtotalCOP, 0);
     const total = subtotal;
     const change = Math.max(0, (amountReceivedCOP || total) - total);
-    const nextNum = 126 + orders.length - INITIAL_ORDERS.length;
+    const nextNum = orders.length + 1;
     const orderNumber = `PED-${String(nextNum).padStart(6, "0")}`;
 
     const newOrder: OrderRecord = {

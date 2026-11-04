@@ -28,6 +28,10 @@ export default function HomePage() {
     .filter((o) => o.status !== "CANCELLED")
     .reduce((acc, o) => acc + o.totalCOP, 0);
 
+  const uniqueCustomersCount = new Set(
+    orders.map((o) => o.customer.name).filter((n) => n && n !== "Cliente General")
+  ).size;
+
   return (
     <div className="p-4 space-y-5 max-w-7xl mx-auto">
       {/* Hero Banner Inspirado en el Mockup de La Parrilla de Sore */}
@@ -88,10 +92,10 @@ export default function HomePage() {
           </div>
           <div className="mt-3 flex items-baseline justify-between">
             <span className="text-2xl font-black text-white">
-              {formatCOP(totalSalesCOP || 1248000)}
+              {formatCOP(totalSalesCOP)}
             </span>
-            <span className="inline-flex items-center text-[11px] font-bold text-emerald-400">
-              <ArrowUpRight className="h-3 w-3 mr-0.5" /> +15%
+            <span className="inline-flex items-center text-[11px] font-bold text-zinc-400">
+              Hoy
             </span>
           </div>
         </div>
@@ -104,9 +108,9 @@ export default function HomePage() {
             </div>
           </div>
           <div className="mt-3 flex items-baseline justify-between">
-            <span className="text-2xl font-black text-white">18</span>
-            <span className="inline-flex items-center text-[11px] font-bold text-emerald-400">
-              <ArrowUpRight className="h-3 w-3 mr-0.5" /> +10%
+            <span className="text-2xl font-black text-white">{uniqueCustomersCount}</span>
+            <span className="inline-flex items-center text-[11px] font-bold text-zinc-400">
+              Registrados
             </span>
           </div>
         </div>
@@ -119,9 +123,9 @@ export default function HomePage() {
             </div>
           </div>
           <div className="mt-3 flex items-baseline justify-between">
-            <span className="text-2xl font-black text-white">$2.450.000</span>
-            <span className="inline-flex items-center text-[11px] font-bold text-rose-400">
-              <ArrowUpRight className="h-3 w-3 mr-0.5" /> +5%
+            <span className="text-2xl font-black text-white">$0</span>
+            <span className="inline-flex items-center text-[11px] font-bold text-emerald-400">
+              Al día
             </span>
           </div>
         </div>
@@ -213,35 +217,47 @@ export default function HomePage() {
           </div>
 
           <div className="mt-3.5 space-y-2.5">
-            {orders.slice(0, 5).map((order) => (
-              <div
-                key={order.id}
-                className="flex items-center justify-between p-3 rounded-xl bg-zinc-900/70 border border-zinc-800/70"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-xs font-bold text-zinc-200">
-                    {order.orderNumber}
-                  </span>
-                  <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                      order.status === "DELIVERED"
-                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                        : order.status === "IN_PREPARATION"
-                        ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
-                        : "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                    }`}
-                  >
-                    {order.status}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-[11px] text-zinc-500">{order.createdAt}</span>
-                  <span className="text-xs font-black text-white">
-                    {formatCOP(order.totalCOP)}
-                  </span>
-                </div>
+            {orders.length === 0 ? (
+              <div className="text-center py-8 rounded-xl bg-zinc-900/40 border border-zinc-800/50 p-4 space-y-2">
+                <p className="text-xs text-zinc-400">No hay pedidos registrados hoy.</p>
+                <Link
+                  href="/pedidos/nuevo"
+                  className="inline-block text-xs font-bold text-amber-500 hover:underline"
+                >
+                  Tomar primer pedido en el POS →
+                </Link>
               </div>
-            ))}
+            ) : (
+              orders.slice(0, 5).map((order) => (
+                <div
+                  key={order.id}
+                  className="flex items-center justify-between p-3 rounded-xl bg-zinc-900/70 border border-zinc-800/70"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-bold text-zinc-200">
+                      {order.orderNumber}
+                    </span>
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                        order.status === "DELIVERED"
+                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                          : order.status === "IN_PREPARATION"
+                          ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                          : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                      }`}
+                    >
+                      {order.status}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[11px] text-zinc-500">{order.createdAt}</span>
+                    <span className="text-xs font-black text-white">
+                      {formatCOP(order.totalCOP)}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
