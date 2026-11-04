@@ -85,7 +85,7 @@ export const usePosStore = create<PosState>((set, get) => ({
   paymentMethod: "cash",
   amountReceivedCOP: 0,
   creditDebtorName: "",
-  creditAuthorizedBy: "",
+  creditAuthorizedBy: "Jonathan",
   orderNotes: "",
   orders: INITIAL_ORDERS,
   customersList: INITIAL_CUSTOMERS,
@@ -169,7 +169,7 @@ export const usePosStore = create<PosState>((set, get) => ({
       paymentMethod: "cash",
       amountReceivedCOP: 0,
       creditDebtorName: "",
-      creditAuthorizedBy: "",
+      creditAuthorizedBy: "Jonathan",
       orderNotes: "",
     }),
 
@@ -226,7 +226,7 @@ export const usePosStore = create<PosState>((set, get) => ({
       orderNotes: "",
       amountReceivedCOP: 0,
       creditDebtorName: "",
-      creditAuthorizedBy: "",
+      creditAuthorizedBy: "Jonathan",
       customer: INITIAL_CUSTOMERS[0],
     });
 
