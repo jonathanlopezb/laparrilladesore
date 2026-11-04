@@ -46,19 +46,6 @@ export default function PosNuevoPedidoPage() {
   const [newCustPhone, setNewCustPhone] = useState("");
   const [newCustAddress, setNewCustAddress] = useState("");
 
-  // Cargar catálogo y pedidos en vivo desde MongoDB
-  useEffect(() => {
-    fetchOrders();
-    fetch("/api/v1/menu-items")
-      .then((r) => r.json())
-      .then((d) => {
-        if (d?.data?.length > 0) {
-          setMenuItems(d.data);
-        }
-      })
-      .catch((e) => console.log("Usando menú local:", e));
-  }, [fetchOrders]);
-
   const {
     cart,
     channel,
@@ -85,6 +72,19 @@ export default function PosNuevoPedidoPage() {
     fetchOrders,
     addCustomer,
   } = usePosStore();
+
+  // Cargar catálogo y pedidos en vivo desde MongoDB
+  useEffect(() => {
+    fetchOrders();
+    fetch("/api/v1/menu-items")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.data?.length > 0) {
+          setMenuItems(d.data);
+        }
+      })
+      .catch((e) => console.log("Usando menú local:", e));
+  }, [fetchOrders]);
 
   const cartTotal = cart.reduce((acc, i) => acc + i.subtotalCOP, 0);
   const cartItemCount = cart.reduce((acc, i) => acc + i.quantity, 0);
