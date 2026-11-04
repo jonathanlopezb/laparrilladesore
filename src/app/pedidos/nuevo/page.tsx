@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 
 export default function PosNuevoPedidoPage() {
+  const [menuItems, setMenuItems] = useState<MenuItem[]>(OFFICIAL_MENU);
   const [selectedCategory, setSelectedCategory] = useState<string>("Todos");
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
@@ -42,6 +43,18 @@ export default function PosNuevoPedidoPage() {
   const [newCustName, setNewCustName] = useState("");
   const [newCustPhone, setNewCustPhone] = useState("");
   const [newCustAddress, setNewCustAddress] = useState("");
+
+  // Cargar catálogo en vivo desde MongoDB
+  useEffect(() => {
+    fetch("/api/v1/menu-items")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.data?.length > 0) {
+          setMenuItems(d.data);
+        }
+      })
+      .catch((e) => console.log("Usando menú local:", e));
+  }, []);
 
   const {
     cart,
@@ -72,15 +85,26 @@ export default function PosNuevoPedidoPage() {
 
   const filteredMenu =
     selectedCategory === "Todos"
-      ? OFFICIAL_MENU
-      : OFFICIAL_MENU.filter((m) => m.category === selectedCategory);
+      ? menuItems
+      : menuItems.filter((m) => m.category === selectedCategory);
 
-  const handleFinishOrder = () => {
+  const handleFinishOrder = async () => {
     const order = submitOrder();
     if (order) {
       setLastCommittedOrder(order);
       setIsCheckoutOpen(false);
       setIsCartOpen(false);
+
+      // Persistir orden en MongoDB Atlas a través de la API
+      try {
+        await fetch("/api/v1/orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(order),
+        });
+      } catch (err) {
+        console.warn("Orden guardada localmente:", err);
+      }
     }
   };
 

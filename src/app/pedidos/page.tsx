@@ -23,6 +23,19 @@ export default function PedidosPage() {
   const [filterStatus, setFilterStatus] = useState<string>("TODOS");
   const [searchQuery, setSearchQuery] = useState("");
 
+  const handleStatusChange = async (orderId: string, orderNumber: string, status: OrderRecord["status"]) => {
+    updateOrderStatus(orderId, status);
+    try {
+      await fetch("/api/v1/orders", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderNumber, status }),
+      });
+    } catch (e) {
+      console.warn("Estado guardado localmente:", e);
+    }
+  };
+
   const filteredOrders = orders.filter((order) => {
     const matchesStatus =
       filterStatus === "TODOS"
@@ -207,7 +220,7 @@ export default function PedidosPage() {
                     <div className="flex items-center gap-2">
                       {order.status === "CONFIRMED" && (
                         <button
-                          onClick={() => updateOrderStatus(order.id, "IN_PREPARATION")}
+                          onClick={() => handleStatusChange(order.id, order.orderNumber, "IN_PREPARATION")}
                           className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center gap-1.5 shadow"
                         >
                           <ChefHat className="h-3.5 w-3.5" /> Pasar a Cocina
@@ -216,7 +229,7 @@ export default function PedidosPage() {
 
                       {order.status === "IN_PREPARATION" && (
                         <button
-                          onClick={() => updateOrderStatus(order.id, "READY")}
+                          onClick={() => handleStatusChange(order.id, order.orderNumber, "READY")}
                           className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center gap-1.5 shadow"
                         >
                           <Check className="h-3.5 w-3.5" /> Marcar Listo
@@ -225,7 +238,7 @@ export default function PedidosPage() {
 
                       {order.status === "READY" && (
                         <button
-                          onClick={() => updateOrderStatus(order.id, "DELIVERED")}
+                          onClick={() => handleStatusChange(order.id, order.orderNumber, "DELIVERED")}
                           className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow"
                         >
                           <CheckCircle2 className="h-3.5 w-3.5" /> Entregar Pedido
@@ -241,7 +254,7 @@ export default function PedidosPage() {
 
                     {order.status !== "CANCELLED" && order.status !== "DELIVERED" && (
                       <button
-                        onClick={() => updateOrderStatus(order.id, "CANCELLED")}
+                        onClick={() => handleStatusChange(order.id, order.orderNumber, "CANCELLED")}
                         className="text-xs text-zinc-500 hover:text-rose-400 flex items-center gap-1 transition"
                       >
                         <Ban className="h-3.5 w-3.5" /> Anular

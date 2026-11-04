@@ -30,10 +30,22 @@ export default function ClientesPage() {
       (c.phone && c.phone.includes(searchQuery))
   );
 
-  const handleCreate = (e: React.FormEvent) => {
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    addCustomer({ name: name.trim(), phone: phone.trim(), address: address.trim() });
+    const newCustomer = { name: name.trim(), phone: phone.trim(), address: address.trim() };
+    addCustomer(newCustomer);
+
+    try {
+      await fetch("/api/v1/customers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newCustomer),
+      });
+    } catch (err) {
+      console.warn("Cliente guardado en sesión:", err);
+    }
+
     setName("");
     setPhone("");
     setAddress("");
