@@ -21,6 +21,10 @@ export interface StockMovementRecord {
   ingredientName: string;
   movementType: "IN_PURCHASE" | "OUT_WASTE" | "OUT_SALE" | "ADJUSTMENT";
   quantity: number;
+  unitCostCOP?: number;
+  totalCostCOP?: number;
+  supplierName?: string;
+  supplierId?: string;
   reason?: string;
   createdAt: string;
 }
@@ -169,14 +173,23 @@ export async function recordStockMovement(data: {
   ingredientId: string;
   movementType: "IN_PURCHASE" | "OUT_WASTE" | "OUT_SALE" | "ADJUSTMENT";
   quantity: number;
+  unitCostCOP?: number;
+  totalCostCOP?: number;
+  supplierName?: string;
+  supplierId?: string;
   reason?: string;
 }) {
+  const totalCostCOP = data.totalCostCOP || (data.unitCostCOP ? Math.round(data.unitCostCOP * data.quantity) : undefined);
   const movementRecord: StockMovementRecord = {
     id: new ObjectId().toString(),
     ingredientId: data.ingredientId,
     ingredientName: "",
     movementType: data.movementType,
     quantity: data.quantity,
+    unitCostCOP: data.unitCostCOP,
+    totalCostCOP: totalCostCOP,
+    supplierName: data.supplierName,
+    supplierId: data.supplierId,
     reason: data.reason,
     createdAt: new Date().toISOString(),
   };
@@ -190,6 +203,9 @@ export async function recordStockMovement(data: {
     const current = memoryInventory[itemIndex].currentStock;
     if (data.movementType === "IN_PURCHASE" || data.movementType === "ADJUSTMENT") {
       memoryInventory[itemIndex].currentStock = Math.max(0, current + data.quantity);
+      if (data.unitCostCOP && data.unitCostCOP > 0) {
+        memoryInventory[itemIndex].unitCostCOP = data.unitCostCOP;
+      }
     } else {
       memoryInventory[itemIndex].currentStock = Math.max(0, current - data.quantity);
     }
@@ -221,19 +237,30 @@ export async function recordStockMovement(data: {
 
     if (ingredient) {
       movementRecord.ingredientName = ingredient.name;
+
+      const updateFields: any = { updatedAt: new Date() };
+      if (data.movementType === "IN_PURCHASE" && data.unitCostCOP && data.unitCostCOP > 0) {
+        updateFields.costCOP = data.unitCostCOP;
+      }
+
       await colIngredients.updateOne(
         { _id: ingredient._id },
         {
           $inc: { currentStock: changeQty },
-          $set: { updatedAt: new Date() },
+          $set: updateFields,
         }
       );
 
       await colMovements.insertOne({
         _id: new ObjectId(movementRecord.id),
         ingredientId: ingredient._id,
+        ingredientName: ingredient.name,
         movementType: (data.movementType === "IN_PURCHASE" ? "PURCHASE_RECEIPT" : "OUT_SALE") as any,
         quantity: changeQty,
+        unitCostCOP: data.unitCostCOP,
+        totalCostCOP: totalCostCOP,
+        supplierName: data.supplierName,
+        supplierId: data.supplierId && ObjectId.isValid(data.supplierId) ? new ObjectId(data.supplierId) : undefined,
         reason: data.reason,
         branchId: new ObjectId("000000000000000000000000"),
         createdBy: new ObjectId("000000000000000000000000"),
@@ -246,6 +273,32 @@ export async function recordStockMovement(data: {
   } catch (error) {
     console.error("[InventoryService] Error registrando movimiento en DB:", error);
     return movementRecord;
+  }
+}
+
+export async function getStockMovements(limit = 50): Promise<StockMovementRecord[]> {
+  try {
+    if (!process.env.MONGODB_URI) {
+      return memoryMovements.slice(0, limit);
+    }
+    const colMovements = await collections.stockMovements();
+    const docs = await colMovements.find({}).sort({ createdAt: -1 }).limit(limit).toArray();
+    return docs.map((d: any) => ({
+      id: d._id.toString(),
+      ingredientId: d.ingredientId ? d.ingredientId.toString() : "",
+      ingredientName: d.ingredientName || "Insumo",
+      movementType: d.movementType === "PURCHASE_RECEIPT" ? "IN_PURCHASE" : (d.movementType as any) || "ADJUSTMENT",
+      quantity: d.quantity || 0,
+      unitCostCOP: d.unitCostCOP,
+      totalCostCOP: d.totalCostCOP || (d.unitCostCOP ? Math.abs(d.quantity) * d.unitCostCOP : undefined),
+      supplierName: d.supplierName,
+      supplierId: d.supplierId ? d.supplierId.toString() : undefined,
+      reason: d.reason,
+      createdAt: d.createdAt ? d.createdAt.toISOString() : new Date().toISOString(),
+    }));
+  } catch (err) {
+    console.warn("[InventoryService] Error obteniendo movimientos:", err);
+    return memoryMovements.slice(0, limit);
   }
 }
 
