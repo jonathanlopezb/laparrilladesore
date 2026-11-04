@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import {
   UtensilsCrossed,
@@ -22,7 +23,11 @@ import { usePosStore } from "@/modules/orders/pos-store";
 import { formatCOP } from "@/shared/money";
 
 export default function HomePage() {
-  const { orders } = usePosStore();
+  const { orders, fetchOrders } = usePosStore();
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   const totalSalesCOP = orders
     .filter((o) => o.status !== "CANCELLED")

@@ -68,6 +68,9 @@ interface PosState {
   clearCart: () => void;
   submitOrder: () => OrderRecord | null;
   updateOrderStatus: (orderId: string, status: OrderRecord["status"]) => void;
+  fetchOrders: () => Promise<void>;
+  setOrders: (orders: OrderRecord[]) => void;
+  clearAllOrders: () => Promise<void>;
   addCustomer: (customer: CustomerSummary) => void;
 }
 
@@ -235,8 +238,32 @@ export const usePosStore = create<PosState>((set, get) => ({
 
   updateOrderStatus: (orderId, status) => {
     set({
-      orders: get().orders.map((o) => (o.id === orderId ? { ...o, status } : o)),
+      orders: get().orders.map((o) => (o.id === orderId || o.orderNumber === orderId ? { ...o, status } : o)),
     });
+  },
+
+  fetchOrders: async () => {
+    try {
+      const res = await fetch("/api/v1/orders");
+      const data = await res.json();
+      if (data.data && Array.isArray(data.data)) {
+        set({ orders: data.data });
+      }
+    } catch (e) {
+      console.warn("Error cargando pedidos desde API:", e);
+    }
+  },
+
+  setOrders: (orders) => set({ orders }),
+
+  clearAllOrders: async () => {
+    try {
+      await fetch("/api/v1/orders", { method: "DELETE" });
+      set({ orders: [] });
+    } catch (e) {
+      console.warn("Error limpiando pedidos:", e);
+      set({ orders: [] });
+    }
   },
 
   addCustomer: (customer) => {

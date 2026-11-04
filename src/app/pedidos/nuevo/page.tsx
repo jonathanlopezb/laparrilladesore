@@ -46,8 +46,9 @@ export default function PosNuevoPedidoPage() {
   const [newCustPhone, setNewCustPhone] = useState("");
   const [newCustAddress, setNewCustAddress] = useState("");
 
-  // Cargar catálogo en vivo desde MongoDB
+  // Cargar catálogo y pedidos en vivo desde MongoDB
   useEffect(() => {
+    fetchOrders();
     fetch("/api/v1/menu-items")
       .then((r) => r.json())
       .then((d) => {
@@ -56,7 +57,7 @@ export default function PosNuevoPedidoPage() {
         }
       })
       .catch((e) => console.log("Usando menú local:", e));
-  }, []);
+  }, [fetchOrders]);
 
   const {
     cart,
@@ -81,6 +82,7 @@ export default function PosNuevoPedidoPage() {
     setOrderNotes,
     clearCart,
     submitOrder,
+    fetchOrders,
     addCustomer,
   } = usePosStore();
 
@@ -119,6 +121,7 @@ export default function PosNuevoPedidoPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(order),
         });
+        await fetchOrders();
       } catch (err) {
         console.warn("Orden guardada localmente:", err);
       }

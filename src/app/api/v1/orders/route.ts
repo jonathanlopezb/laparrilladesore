@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getOrders, createOrder, updateOrderStatus } from "@/server/modules/orders/orders.service";
+import { getOrders, createOrder, updateOrderStatus, clearAllOrders } from "@/server/modules/orders/orders.service";
 import { ok, created, handleError } from "@/server/http/response";
 
 const OrderSchema = z.object({
@@ -60,12 +60,22 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
   try {
     const body = await req.json();
-    const { orderNumber, status } = body;
-    if (!orderNumber || !status) {
-      return NextResponse.json({ error: { message: "orderNumber y status requeridos" } }, { status: 400 });
+    const { orderNumber, id, status } = body;
+    const target = orderNumber || id;
+    if (!target || !status) {
+      return NextResponse.json({ error: { message: "orderNumber/id y status requeridos" } }, { status: 400 });
     }
-    await updateOrderStatus(orderNumber, status);
-    return ok({ success: true, orderNumber, status });
+    await updateOrderStatus(target, status);
+    return ok({ success: true, target, status });
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    await clearAllOrders();
+    return ok({ success: true, message: "Todos los pedidos han sido eliminados de MongoDB Atlas" });
   } catch (error) {
     return handleError(error);
   }

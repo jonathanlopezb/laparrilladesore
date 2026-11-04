@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -26,7 +26,11 @@ import { usePosStore } from "@/modules/orders/pos-store";
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { orders } = usePosStore();
+  const { orders, fetchOrders } = usePosStore();
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   const activeOrdersCount = orders.filter(
     (o) => o.status === "CONFIRMED" || o.status === "IN_PREPARATION"

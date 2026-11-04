@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePosStore, type OrderRecord } from "@/modules/orders/pos-store";
 import { formatCOP } from "@/shared/money";
@@ -16,12 +16,41 @@ import {
   Check,
   Ban,
   Printer,
+  RotateCw,
+  Trash2,
 } from "lucide-react";
 
 export default function PedidosPage() {
-  const { orders, updateOrderStatus } = usePosStore();
+  const { orders, updateOrderStatus, fetchOrders, clearAllOrders } = usePosStore();
   const [filterStatus, setFilterStatus] = useState<string>("TODOS");
   const [searchQuery, setSearchQuery] = useState("");
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Cargar pedidos en vivo desde MongoDB al entrar y cada 8 segundos
+  useEffect(() => {
+    fetchOrders();
+    const timer = setInterval(() => {
+      fetchOrders();
+    }, 8000);
+    return () => clearInterval(timer);
+  }, [fetchOrders]);
+
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchOrders();
+    setTimeout(() => setIsRefreshing(false), 500);
+  };
+
+  const handleClearAll = async () => {
+    if (
+      confirm(
+        "⚠️ ¿Estás seguro de que deseas ELIMINAR TODOS los pedidos de prueba de la base de datos?\n\nEsto dejará el sistema en cero para iniciar la operación real de PRODUCCIÓN."
+      )
+    ) {
+      await clearAllOrders();
+      await fetchOrders();
+    }
+  };
 
   const handleStatusChange = async (orderId: string, orderNumber: string, status: OrderRecord["status"]) => {
     updateOrderStatus(orderId, status);
@@ -29,8 +58,10 @@ export default function PedidosPage() {
       await fetch("/api/v1/orders", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderNumber, status }),
+        body: JSON.stringify({ orderNumber, id: orderId, status }),
       });
+      // Re-sincronizar desde MongoDB
+      await fetchOrders();
     } catch (e) {
       console.warn("Estado guardado localmente:", e);
     }
@@ -90,13 +121,32 @@ export default function PedidosPage() {
           </div>
         </div>
 
-        <Link
-          href="/pedidos/nuevo"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow-lg shadow-amber-600/20"
-        >
-          <PlusCircle className="h-4 w-4" />
-          <span className="hidden sm:inline">Nuevo Pedido</span>
-        </Link>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleManualRefresh}
+            title="Sincronizar pedidos con MongoDB"
+            className="p-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white transition"
+          >
+            <RotateCw className={`h-4 w-4 ${isRefreshing ? "animate-spin text-amber-500" : ""}`} />
+          </button>
+
+          <button
+            onClick={handleClearAll}
+            title="Borrar pedidos de prueba (Iniciar en producción limpia)"
+            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 font-bold text-xs transition"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            <span>Limpiar Prueba</span>
+          </button>
+
+          <Link
+            href="/pedidos/nuevo"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow-lg shadow-amber-600/20"
+          >
+            <PlusCircle className="h-4 w-4" />
+            <span className="hidden sm:inline">Nuevo Pedido</span>
+          </Link>
+        </div>
       </header>
 
       <main className="max-w-6xl mx-auto px-4 pt-4 space-y-4">

@@ -126,8 +126,15 @@ export async function updateOrderStatus(orderNumber: string, status: OrderRecord
     }
 
     const col = await collections.orders();
+    const filter: any = {
+      $or: [
+        { orderNumber: orderNumber },
+        ...(ObjectId.isValid(orderNumber) ? [{ _id: new ObjectId(orderNumber) }] : []),
+      ],
+    };
+
     await col.updateOne(
-      { orderNumber },
+      filter,
       {
         $set: { status, updatedAt: new Date() },
         $push: {
@@ -143,5 +150,20 @@ export async function updateOrderStatus(orderNumber: string, status: OrderRecord
   } catch (error) {
     console.warn("[OrdersService] Error actualizando estado de pedido:", error);
     return true;
+  }
+}
+
+export async function clearAllOrders() {
+  memoryOrders = [];
+  if (!process.env.MONGODB_URI) {
+    return true;
+  }
+  try {
+    const col = await collections.orders();
+    await col.deleteMany({});
+    return true;
+  } catch (error) {
+    console.error("[OrdersService] Error limpiando pedidos en DB:", error);
+    return false;
   }
 }
