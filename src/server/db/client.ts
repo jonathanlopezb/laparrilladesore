@@ -6,22 +6,6 @@
 import "server-only";
 import { MongoClient, type Db } from "mongodb";
 
-if (!process.env.MONGODB_URI) {
-  throw new Error(
-    "MONGODB_URI no está definida. Agrega el valor en .env.local."
-  );
-}
-
-if (!process.env.MONGODB_DB) {
-  throw new Error(
-    "MONGODB_DB no está definida. Agrega el nombre de la base de datos en .env.local."
-  );
-}
-
-const uri = process.env.MONGODB_URI;
-const dbName = process.env.MONGODB_DB;
-
-// Opciones del pool — ajustar según carga real medida
 const options = {
   maxPoolSize: 10,
   minPoolSize: 1,
@@ -29,34 +13,41 @@ const options = {
   socketTimeoutMS: 45000,
 };
 
-// Reutilizar el MongoClient entre invocaciones de funciones Vercel
-// En desarrollo, Next.js recarga módulos con HMR, por lo que usamos
-// un global para evitar conexiones duplicadas.
-
 declare global {
   // eslint-disable-next-line no-var
   var _mongoClient: MongoClient | undefined;
 }
 
-let client: MongoClient;
-
-if (process.env.NODE_ENV === "development") {
-  if (!global._mongoClient) {
-    global._mongoClient = new MongoClient(uri, options);
+function initClient(): MongoClient {
+  const uri = process.env.MONGODB_URI;
+  if (!uri) {
+    throw new Error(
+      "MONGODB_URI no está definida. Configúrala en las variables de entorno."
+    );
   }
-  client = global._mongoClient;
-} else {
-  client = new MongoClient(uri, options);
-}
 
-export async function getDb(): Promise<Db> {
-  await client.connect();
-  return client.db(dbName);
+  if (process.env.NODE_ENV === "development") {
+    if (!global._mongoClient) {
+      global._mongoClient = new MongoClient(uri, options);
+    }
+    return global._mongoClient;
+  }
+  return new MongoClient(uri, options);
 }
 
 export async function getClient(): Promise<MongoClient> {
+  const client = initClient();
   await client.connect();
   return client;
 }
 
-export { client };
+export async function getDb(): Promise<Db> {
+  const dbName = process.env.MONGODB_DB;
+  if (!dbName) {
+    throw new Error(
+      "MONGODB_DB no está definida. Configúrala en las variables de entorno."
+    );
+  }
+  const client = await getClient();
+  return client.db(dbName);
+}
