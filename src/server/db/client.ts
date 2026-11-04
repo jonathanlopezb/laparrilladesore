@@ -42,12 +42,9 @@ export async function getClient(): Promise<MongoClient> {
 }
 
 export async function getDb(): Promise<Db> {
-  const dbName = process.env.MONGODB_DB;
-  if (!dbName) {
-    throw new Error(
-      "MONGODB_DB no está definida. Configúrala en las variables de entorno."
-    );
-  }
+  // Si MONGODB_DB no está configurada en Vercel, usar 'laparrilladesore' por defecto
+  // MongoDB Atlas creará la base de datos y colecciones automáticamente al escribir los datos.
+  const dbName = process.env.MONGODB_DB || "laparrilladesore";
   const client = await getClient();
   return client.db(dbName);
 }
