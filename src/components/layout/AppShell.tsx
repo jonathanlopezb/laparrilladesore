@@ -41,10 +41,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   ];
 
   const SECONDARY_NAV = [
-    { label: "Proveedores", href: "#", icon: Truck, soon: true },
-    { label: "Inventario", href: "#", icon: Package, soon: true },
-    { label: "Caja y Turno", href: "#", icon: Calculator, soon: true },
-    { label: "Reportes", href: "#", icon: BarChart3, soon: true },
+    { label: "Proveedores", href: "/proveedores", icon: Truck },
+    { label: "Inventario", href: "/inventario", icon: Package },
+    { label: "Caja y Turno", href: "/caja", icon: Calculator },
+    { label: "Reportes", href: "/reportes", icon: BarChart3 },
   ];
 
   return (
@@ -110,22 +110,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </p>
             {SECONDARY_NAV.map((item) => {
               const Icon = item.icon;
+              const isActive = pathname === item.href;
 
               return (
-                <div
+                <Link
                   key={item.label}
-                  className="flex items-center justify-between px-3 py-2 rounded-xl text-xs text-zinc-500 hover:text-zinc-300 transition cursor-default"
+                  href={item.href}
+                  className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition ${
+                    isActive
+                      ? "bg-gradient-to-r from-amber-500/20 to-orange-500/10 text-amber-400 border border-amber-500/30 shadow-md shadow-amber-500/5"
+                      : "text-zinc-400 hover:text-white hover:bg-zinc-900/80"
+                  }`}
                 >
                   <div className="flex items-center gap-2.5">
-                    <Icon className="h-4 w-4" />
+                    <Icon className={`h-4 w-4 ${isActive ? "text-amber-400" : ""}`} />
                     <span>{item.label}</span>
                   </div>
-                  {item.soon && (
-                    <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-zinc-900 text-zinc-500 border border-zinc-800">
-                      Próx
-                    </span>
-                  )}
-                </div>
+                </Link>
               );
             })}
           </div>
@@ -202,25 +203,59 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* Drawer Mobile Desplegable */}
         {isMobileMenuOpen && (
-          <div className="lg:hidden bg-[#141414] border-b border-zinc-800 p-4 space-y-3 shadow-2xl animate-in slide-in-from-top-4">
-            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
-              Navegación del Restaurante
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              {NAV_ITEMS.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.label}
-                    href={item.href}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex items-center gap-2 p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-bold text-zinc-200"
-                  >
-                    <Icon className="h-4 w-4 text-amber-500" />
-                    <span>{item.label}</span>
-                  </Link>
-                );
-              })}
+          <div className="lg:hidden bg-[#141414] border-b border-zinc-800 p-4 space-y-4 shadow-2xl animate-in slide-in-from-top-4">
+            <div>
+              <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-2">
+                Operaciones Principales
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {NAV_ITEMS.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = pathname === item.href;
+                  return (
+                    <Link
+                      key={item.label}
+                      href={item.href}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs font-bold transition ${
+                        isActive
+                          ? "bg-amber-600/20 border-amber-500/40 text-amber-400"
+                          : "bg-zinc-900 border-zinc-800 text-zinc-200"
+                      }`}
+                    >
+                      <Icon className="h-4 w-4 text-amber-500" />
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-2">
+                Administración y Control
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {SECONDARY_NAV.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = pathname === item.href;
+                  return (
+                    <Link
+                      key={item.label}
+                      href={item.href}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs font-bold transition ${
+                        isActive
+                          ? "bg-amber-600/20 border-amber-500/40 text-amber-400"
+                          : "bg-zinc-900 border-zinc-800 text-zinc-200"
+                      }`}
+                    >
+                      <Icon className="h-4 w-4 text-orange-500" />
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}

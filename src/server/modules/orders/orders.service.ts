@@ -37,9 +37,11 @@ export async function getOrders() {
       subtotalCOP: d.subtotalCOP,
       discountCOP: d.discountCOP,
       totalCOP: d.totalCOP,
-      paymentMethod: (d.notes?.includes("PAGO:") ? d.notes.split("PAGO:")[1].trim() : "cash") as any,
+      paymentMethod: (d.paymentMethod || (d.notes?.includes("PAGO:") ? d.notes.split("PAGO:")[1]?.split("|")[0]?.trim() : "cash")) as any,
       amountReceivedCOP: d.paidCOP || d.totalCOP,
       changeCOP: 0,
+      creditDebtorName: d.creditDebtorName,
+      creditAuthorizedBy: d.creditAuthorizedBy,
       status: d.status,
       notes: d.notes,
     }));
@@ -58,11 +60,15 @@ export async function createOrder(order: OrderRecord) {
     }
 
     const col = await collections.orders();
+    const isCredit = order.paymentMethod === "credit";
     const doc = {
       _id: new ObjectId(),
       orderNumber: order.orderNumber,
       status: order.status,
-      paymentStatus: "PAID",
+      paymentStatus: isCredit ? "UNPAID" : "PAID",
+      paymentMethod: order.paymentMethod,
+      creditDebtorName: order.creditDebtorName || (isCredit ? order.customer.name : undefined),
+      creditAuthorizedBy: order.creditAuthorizedBy || (isCredit ? "Jonathan" : undefined),
       channel: order.channel,
       customerName: order.customer.name,
       customerPhone: order.customer.phone,
@@ -85,8 +91,10 @@ export async function createOrder(order: OrderRecord) {
       subtotalCOP: order.subtotalCOP,
       discountCOP: 0,
       totalCOP: order.totalCOP,
-      paidCOP: order.amountReceivedCOP,
-      notes: `${order.notes || ""} | PAGO: ${order.paymentMethod}`,
+      paidCOP: isCredit ? 0 : order.amountReceivedCOP,
+      notes: isCredit
+        ? `${order.notes || ""} | FIADO A: ${order.creditDebtorName || order.customer.name} | AUT: ${order.creditAuthorizedBy || "Jonathan"}`
+        : `${order.notes || ""} | PAGO: ${order.paymentMethod}`,
       statusHistory: [
         {
           status: order.status,

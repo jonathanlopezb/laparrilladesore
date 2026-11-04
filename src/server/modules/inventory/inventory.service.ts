@@ -1,0 +1,243 @@
+import "server-only";
+import { ObjectId } from "mongodb";
+import { collections } from "@/server/db/collections";
+
+export interface InventoryItem {
+  id: string;
+  sku: string;
+  name: string;
+  category: "carnes" | "verduras" | "bebidas" | "insumos" | "empaques";
+  unit: string; // "kg", "unidades", "litros", "bultos", "porciones"
+  currentStock: number;
+  minStock: number;
+  unitCostCOP: number;
+  lastUpdated?: string;
+}
+
+export interface StockMovementRecord {
+  id: string;
+  ingredientId: string;
+  ingredientName: string;
+  movementType: "IN_PURCHASE" | "OUT_WASTE" | "OUT_SALE" | "ADJUSTMENT";
+  quantity: number;
+  reason?: string;
+  createdAt: string;
+}
+
+const DEFAULT_INVENTORY: Omit<InventoryItem, "id">[] = [
+  {
+    sku: "INS-001",
+    name: "Presas de Pollo Seleccionadas",
+    category: "carnes",
+    unit: "presas",
+    currentStock: 45,
+    minStock: 20,
+    unitCostCOP: 4500,
+  },
+  {
+    sku: "INS-002",
+    name: "Chuleta de Cerdo Fresca",
+    category: "carnes",
+    unit: "cortes",
+    currentStock: 35,
+    minStock: 15,
+    unitCostCOP: 5000,
+  },
+  {
+    sku: "INS-003",
+    name: "Chorizo Artesanal Santarrosano",
+    category: "carnes",
+    unit: "unidades",
+    currentStock: 50,
+    minStock: 25,
+    unitCostCOP: 3200,
+  },
+  {
+    sku: "INS-004",
+    name: "Papa Criolla y Pastusa",
+    category: "verduras",
+    unit: "kg",
+    currentStock: 40,
+    minStock: 15,
+    unitCostCOP: 2800,
+  },
+  {
+    sku: "INS-005",
+    name: "Ensalada de la Casa (Porciones)",
+    category: "verduras",
+    unit: "porciones",
+    currentStock: 60,
+    minStock: 20,
+    unitCostCOP: 1200,
+  },
+  {
+    sku: "INS-006",
+    name: "Salsa Secreta de la Casa",
+    category: "insumos",
+    unit: "litros",
+    currentStock: 12,
+    minStock: 5,
+    unitCostCOP: 6000,
+  },
+  {
+    sku: "INS-007",
+    name: "Carbón Vegetal Seleccionado",
+    category: "insumos",
+    unit: "bultos",
+    currentStock: 8,
+    minStock: 3,
+    unitCostCOP: 38000,
+  },
+  {
+    sku: "INS-008",
+    name: "Cajas Térmicas para Llevar / Domicilios",
+    category: "empaques",
+    unit: "unidades",
+    currentStock: 150,
+    minStock: 50,
+    unitCostCOP: 650,
+  },
+  {
+    sku: "INS-009",
+    name: "Gaseosas y Refrescos 400ml",
+    category: "bebidas",
+    unit: "unidades",
+    currentStock: 72,
+    minStock: 24,
+    unitCostCOP: 2200,
+  },
+];
+
+let memoryInventory: InventoryItem[] = DEFAULT_INVENTORY.map((item, idx) => ({
+  ...item,
+  id: `inv-${idx + 1}`,
+  lastUpdated: new Date().toISOString(),
+}));
+
+let memoryMovements: StockMovementRecord[] = [];
+
+export async function getInventory(): Promise<InventoryItem[]> {
+  try {
+    if (!process.env.MONGODB_URI) {
+      return memoryInventory;
+    }
+
+    const col = await collections.ingredients();
+    const count = await col.countDocuments();
+
+    // Auto-seed si está vacío
+    if (count === 0) {
+      const docs = DEFAULT_INVENTORY.map((item) => ({
+        ...item,
+        _id: new ObjectId(),
+        sku: item.sku,
+        name: item.name,
+        baseUnit: item.unit,
+        currentStock: item.currentStock,
+        minStock: item.minStock,
+        costCOP: item.unitCostCOP,
+        category: item.category,
+        isActive: true,
+        branchId: new ObjectId("000000000000000000000000"),
+        createdBy: new ObjectId("000000000000000000000000"),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }));
+      await col.insertMany(docs as any);
+    }
+
+    const docs = await col.find({ isActive: true }).sort({ name: 1 }).toArray();
+
+    return docs.map((d: any) => ({
+      id: d._id.toString(),
+      sku: d.sku || "INS-000",
+      name: d.name,
+      category: d.category || "insumos",
+      unit: d.baseUnit || d.unit || "unidades",
+      currentStock: d.currentStock || 0,
+      minStock: d.minStock || 0,
+      unitCostCOP: d.costCOP || d.unitCostCOP || 0,
+      lastUpdated: d.updatedAt ? d.updatedAt.toISOString() : undefined,
+    }));
+  } catch (error) {
+    console.warn("[InventoryService] Fallback a memoria local:", error);
+    return memoryInventory;
+  }
+}
+
+export async function recordStockMovement(data: {
+  ingredientId: string;
+  movementType: "IN_PURCHASE" | "OUT_WASTE" | "OUT_SALE" | "ADJUSTMENT";
+  quantity: number;
+  reason?: string;
+}) {
+  const movementRecord: StockMovementRecord = {
+    id: new ObjectId().toString(),
+    ingredientId: data.ingredientId,
+    ingredientName: "",
+    movementType: data.movementType,
+    quantity: data.quantity,
+    reason: data.reason,
+    createdAt: new Date().toISOString(),
+  };
+
+  // Actualización en memoria
+  const itemIndex = memoryInventory.findIndex((i) => i.id === data.ingredientId);
+  if (itemIndex >= 0) {
+    movementRecord.ingredientName = memoryInventory[itemIndex].name;
+    const current = memoryInventory[itemIndex].currentStock;
+    if (data.movementType === "IN_PURCHASE" || data.movementType === "ADJUSTMENT") {
+      memoryInventory[itemIndex].currentStock = Math.max(0, current + data.quantity);
+    } else {
+      memoryInventory[itemIndex].currentStock = Math.max(0, current - data.quantity);
+    }
+    memoryInventory[itemIndex].lastUpdated = new Date().toISOString();
+  }
+  memoryMovements.unshift(movementRecord);
+
+  if (!process.env.MONGODB_URI) {
+    return movementRecord;
+  }
+
+  try {
+    const colIngredients = await collections.ingredients();
+    const colMovements = await collections.stockMovements();
+
+    const changeQty =
+      data.movementType === "IN_PURCHASE" || data.movementType === "ADJUSTMENT"
+        ? Math.abs(data.quantity)
+        : -Math.abs(data.quantity);
+
+    if (ObjectId.isValid(data.ingredientId)) {
+      const objId = new ObjectId(data.ingredientId);
+      const ingredient = await colIngredients.findOne({ _id: objId });
+      if (ingredient) {
+        movementRecord.ingredientName = ingredient.name;
+        await colIngredients.updateOne(
+          { _id: objId },
+          {
+            $inc: { currentStock: changeQty },
+            $set: { updatedAt: new Date() },
+          }
+        );
+
+        await colMovements.insertOne({
+          _id: new ObjectId(movementRecord.id),
+          ingredientId: objId,
+          movementType: (data.movementType === "IN_PURCHASE" ? "PURCHASE_RECEIPT" : "WASTE") as any,
+          quantity: changeQty,
+          reason: data.reason,
+          branchId: new ObjectId("000000000000000000000000"),
+          createdBy: new ObjectId("000000000000000000000000"),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        } as any);
+      }
+    }
+
+    return movementRecord;
+  } catch (error) {
+    console.error("[InventoryService] Error registrando movimiento en DB:", error);
+    return movementRecord;
+  }
+}
