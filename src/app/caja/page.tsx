@@ -32,7 +32,7 @@ export default function CajaTurnoPage() {
   const [submitting, setSubmitting] = useState(false);
 
   // Forms
-  const [openingFloat, setOpeningFloat] = useState<number>(50000);
+  const [openingFloat, setOpeningFloat] = useState<number>(0);
   const [openingNotes, setOpeningNotes] = useState("");
   const [countedCash, setCountedCash] = useState<number>(0);
   const [diffReason, setDiffReason] = useState("");

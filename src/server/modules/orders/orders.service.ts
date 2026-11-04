@@ -2,6 +2,7 @@ import "server-only";
 import { ObjectId } from "mongodb";
 import { collections } from "@/server/db/collections";
 import type { OrderRecord } from "@/modules/orders/pos-store";
+import { deductInventoryForOrder } from "@/server/modules/inventory/inventory.service";
 
 // Memoria de respaldo si MongoDB no está conectada
 let memoryOrders: OrderRecord[] = [];
@@ -108,6 +109,12 @@ export async function createOrder(order: OrderRecord) {
     };
 
     await col.insertOne(doc as any);
+
+    // 🔽 Descontar automáticamente el inventario de cada insumo según la receta del plato
+    await deductInventoryForOrder(
+      order.lines.map((l) => ({ sku: l.sku, name: l.name, quantity: l.quantity }))
+    );
+
     return order;
   } catch (error) {
     console.warn("[OrdersService] Error guardando pedido en DB:", error);

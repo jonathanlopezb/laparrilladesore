@@ -45,8 +45,8 @@ let memorySession: CashSessionData | null = {
   status: "open",
   openedAt: new Date().toISOString(),
   openedBy: "Jonathan López",
-  openingFloatCOP: 50000,
-  notes: "Turno del día iniciado con base en sencillo",
+  openingFloatCOP: 0,
+  notes: "Turno del día iniciado — ingresa el sencillo inicial",
 };
 
 let memoryMovements: CashMovementData[] = [];

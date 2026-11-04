@@ -1,13 +1,14 @@
 import "server-only";
 import { ObjectId } from "mongodb";
 import { collections } from "@/server/db/collections";
+import { DISH_RECIPES } from "@/shared/inventory/recipes";
 
 export interface InventoryItem {
   id: string;
   sku: string;
   name: string;
   category: "carnes" | "verduras" | "bebidas" | "insumos" | "empaques";
-  unit: string; // "kg", "unidades", "litros", "bultos", "porciones"
+  unit: string;
   currentStock: number;
   minStock: number;
   unitCostCOP: number;
@@ -30,7 +31,7 @@ const DEFAULT_INVENTORY: Omit<InventoryItem, "id">[] = [
     name: "Presas de Pollo Seleccionadas",
     category: "carnes",
     unit: "presas",
-    currentStock: 45,
+    currentStock: 0,
     minStock: 20,
     unitCostCOP: 4500,
   },
@@ -39,7 +40,7 @@ const DEFAULT_INVENTORY: Omit<InventoryItem, "id">[] = [
     name: "Chuleta de Cerdo Fresca",
     category: "carnes",
     unit: "cortes",
-    currentStock: 35,
+    currentStock: 0,
     minStock: 15,
     unitCostCOP: 5000,
   },
@@ -48,7 +49,7 @@ const DEFAULT_INVENTORY: Omit<InventoryItem, "id">[] = [
     name: "Chorizo Artesanal Santarrosano",
     category: "carnes",
     unit: "unidades",
-    currentStock: 50,
+    currentStock: 0,
     minStock: 25,
     unitCostCOP: 3200,
   },
@@ -57,7 +58,7 @@ const DEFAULT_INVENTORY: Omit<InventoryItem, "id">[] = [
     name: "Papa Criolla y Pastusa",
     category: "verduras",
     unit: "kg",
-    currentStock: 40,
+    currentStock: 0,
     minStock: 15,
     unitCostCOP: 2800,
   },
@@ -66,7 +67,7 @@ const DEFAULT_INVENTORY: Omit<InventoryItem, "id">[] = [
     name: "Ensalada de la Casa (Porciones)",
     category: "verduras",
     unit: "porciones",
-    currentStock: 60,
+    currentStock: 0,
     minStock: 20,
     unitCostCOP: 1200,
   },
@@ -75,7 +76,7 @@ const DEFAULT_INVENTORY: Omit<InventoryItem, "id">[] = [
     name: "Salsa Secreta de la Casa",
     category: "insumos",
     unit: "litros",
-    currentStock: 12,
+    currentStock: 0,
     minStock: 5,
     unitCostCOP: 6000,
   },
@@ -84,7 +85,7 @@ const DEFAULT_INVENTORY: Omit<InventoryItem, "id">[] = [
     name: "Carbón Vegetal Seleccionado",
     category: "insumos",
     unit: "bultos",
-    currentStock: 8,
+    currentStock: 0,
     minStock: 3,
     unitCostCOP: 38000,
   },
@@ -93,7 +94,7 @@ const DEFAULT_INVENTORY: Omit<InventoryItem, "id">[] = [
     name: "Cajas Térmicas para Llevar / Domicilios",
     category: "empaques",
     unit: "unidades",
-    currentStock: 150,
+    currentStock: 0,
     minStock: 50,
     unitCostCOP: 650,
   },
@@ -102,7 +103,7 @@ const DEFAULT_INVENTORY: Omit<InventoryItem, "id">[] = [
     name: "Gaseosas y Refrescos 400ml",
     category: "bebidas",
     unit: "unidades",
-    currentStock: 72,
+    currentStock: 0,
     minStock: 24,
     unitCostCOP: 2200,
   },
@@ -125,15 +126,14 @@ export async function getInventory(): Promise<InventoryItem[]> {
     const col = await collections.ingredients();
     const count = await col.countDocuments();
 
-    // Auto-seed si está vacío
+    // Auto-seed si está vacío — ahora con stock 0 (el operador ingresa su propio stock)
     if (count === 0) {
       const docs = DEFAULT_INVENTORY.map((item) => ({
-        ...item,
         _id: new ObjectId(),
         sku: item.sku,
         name: item.name,
         baseUnit: item.unit,
-        currentStock: item.currentStock,
+        currentStock: 0,
         minStock: item.minStock,
         costCOP: item.unitCostCOP,
         category: item.category,
@@ -154,7 +154,7 @@ export async function getInventory(): Promise<InventoryItem[]> {
       name: d.name,
       category: d.category || "insumos",
       unit: d.baseUnit || d.unit || "unidades",
-      currentStock: d.currentStock || 0,
+      currentStock: d.currentStock ?? 0,
       minStock: d.minStock || 0,
       unitCostCOP: d.costCOP || d.unitCostCOP || 0,
       lastUpdated: d.updatedAt ? d.updatedAt.toISOString() : undefined,
@@ -182,7 +182,9 @@ export async function recordStockMovement(data: {
   };
 
   // Actualización en memoria
-  const itemIndex = memoryInventory.findIndex((i) => i.id === data.ingredientId);
+  const itemIndex = memoryInventory.findIndex(
+    (i) => i.id === data.ingredientId || i.sku === data.ingredientId
+  );
   if (itemIndex >= 0) {
     movementRecord.ingredientName = memoryInventory[itemIndex].name;
     const current = memoryInventory[itemIndex].currentStock;
@@ -208,36 +210,71 @@ export async function recordStockMovement(data: {
         ? Math.abs(data.quantity)
         : -Math.abs(data.quantity);
 
+    // Buscar por ID o por SKU
+    let ingredient: any = null;
     if (ObjectId.isValid(data.ingredientId)) {
-      const objId = new ObjectId(data.ingredientId);
-      const ingredient = await colIngredients.findOne({ _id: objId });
-      if (ingredient) {
-        movementRecord.ingredientName = ingredient.name;
-        await colIngredients.updateOne(
-          { _id: objId },
-          {
-            $inc: { currentStock: changeQty },
-            $set: { updatedAt: new Date() },
-          }
-        );
+      ingredient = await colIngredients.findOne({ _id: new ObjectId(data.ingredientId) });
+    }
+    if (!ingredient) {
+      ingredient = await colIngredients.findOne({ sku: data.ingredientId } as any);
+    }
 
-        await colMovements.insertOne({
-          _id: new ObjectId(movementRecord.id),
-          ingredientId: objId,
-          movementType: (data.movementType === "IN_PURCHASE" ? "PURCHASE_RECEIPT" : "WASTE") as any,
-          quantity: changeQty,
-          reason: data.reason,
-          branchId: new ObjectId("000000000000000000000000"),
-          createdBy: new ObjectId("000000000000000000000000"),
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        } as any);
-      }
+    if (ingredient) {
+      movementRecord.ingredientName = ingredient.name;
+      await colIngredients.updateOne(
+        { _id: ingredient._id },
+        {
+          $inc: { currentStock: changeQty },
+          $set: { updatedAt: new Date() },
+        }
+      );
+
+      await colMovements.insertOne({
+        _id: new ObjectId(movementRecord.id),
+        ingredientId: ingredient._id,
+        movementType: (data.movementType === "IN_PURCHASE" ? "PURCHASE_RECEIPT" : "OUT_SALE") as any,
+        quantity: changeQty,
+        reason: data.reason,
+        branchId: new ObjectId("000000000000000000000000"),
+        createdBy: new ObjectId("000000000000000000000000"),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as any);
     }
 
     return movementRecord;
   } catch (error) {
     console.error("[InventoryService] Error registrando movimiento en DB:", error);
     return movementRecord;
+  }
+}
+
+/**
+ * Descuenta automáticamente los insumos del inventario al confirmar un pedido.
+ * Aplica las recetas definidas en DISH_RECIPES basadas en el SKU del plato.
+ */
+export async function deductInventoryForOrder(
+  lines: { sku: string; name: string; quantity: number }[]
+) {
+  try {
+    for (const line of lines) {
+      const recipe = DISH_RECIPES[line.sku];
+      if (!recipe) {
+        console.log(`[Inventory] Sin receta para ${line.sku} (${line.name}), omitiendo descuento.`);
+        continue;
+      }
+
+      for (const ingredient of recipe) {
+        const totalQty = ingredient.quantity * line.quantity;
+        await recordStockMovement({
+          ingredientId: ingredient.inventorySku,
+          movementType: "OUT_SALE",
+          quantity: totalQty,
+          reason: `Venta: ${line.quantity}x ${line.name}`,
+        });
+      }
+    }
+  } catch (error) {
+    console.error("[InventoryService] Error descontando inventario por pedido:", error);
   }
 }
