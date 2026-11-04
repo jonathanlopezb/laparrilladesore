@@ -17,7 +17,7 @@ export interface CustomerSummary {
 }
 
 export type OrderChannel = "counter" | "takeaway" | "table" | "delivery";
-export type PaymentMethod = "cash" | "nequi" | "daviplata" | "card" | "transfer";
+export type PaymentMethod = "cash" | "nequi" | "daviplata" | "breb" | "credit";
 
 export interface OrderRecord {
   id: string;
@@ -34,6 +34,8 @@ export interface OrderRecord {
   paymentMethod: PaymentMethod;
   amountReceivedCOP: number;
   changeCOP: number;
+  creditDebtorName?: string;
+  creditAuthorizedBy?: string;
   status: "CONFIRMED" | "IN_PREPARATION" | "READY" | "DELIVERED" | "CANCELLED";
   notes?: string;
 }
@@ -45,6 +47,8 @@ interface PosState {
   customer: CustomerSummary;
   paymentMethod: PaymentMethod;
   amountReceivedCOP: number;
+  creditDebtorName: string;
+  creditAuthorizedBy: string;
   orderNotes: string;
   orders: OrderRecord[];
   customersList: CustomerSummary[];
@@ -59,6 +63,7 @@ interface PosState {
   setCustomer: (customer: CustomerSummary) => void;
   setPaymentMethod: (method: PaymentMethod) => void;
   setAmountReceived: (amount: number) => void;
+  setCreditInfo: (debtor: string, authorizedBy: string) => void;
   setOrderNotes: (notes: string) => void;
   clearCart: () => void;
   submitOrder: () => OrderRecord | null;
@@ -79,6 +84,8 @@ export const usePosStore = create<PosState>((set, get) => ({
   customer: INITIAL_CUSTOMERS[0],
   paymentMethod: "cash",
   amountReceivedCOP: 0,
+  creditDebtorName: "",
+  creditAuthorizedBy: "",
   orderNotes: "",
   orders: INITIAL_ORDERS,
   customersList: INITIAL_CUSTOMERS,
@@ -150,6 +157,7 @@ export const usePosStore = create<PosState>((set, get) => ({
   setCustomer: (customer) => set({ customer }),
   setPaymentMethod: (paymentMethod) => set({ paymentMethod }),
   setAmountReceived: (amountReceivedCOP) => set({ amountReceivedCOP }),
+  setCreditInfo: (creditDebtorName, creditAuthorizedBy) => set({ creditDebtorName, creditAuthorizedBy }),
   setOrderNotes: (orderNotes) => set({ orderNotes }),
 
   clearCart: () =>
@@ -158,7 +166,10 @@ export const usePosStore = create<PosState>((set, get) => ({
       channel: "counter",
       tableNumber: "",
       customer: INITIAL_CUSTOMERS[0],
+      paymentMethod: "cash",
       amountReceivedCOP: 0,
+      creditDebtorName: "",
+      creditAuthorizedBy: "",
       orderNotes: "",
     }),
 
@@ -170,6 +181,8 @@ export const usePosStore = create<PosState>((set, get) => ({
       customer,
       paymentMethod,
       amountReceivedCOP,
+      creditDebtorName,
+      creditAuthorizedBy,
       orderNotes,
       orders,
     } = get();
@@ -178,7 +191,7 @@ export const usePosStore = create<PosState>((set, get) => ({
 
     const subtotal = cart.reduce((acc, i) => acc + i.subtotalCOP, 0);
     const total = subtotal;
-    const change = Math.max(0, (amountReceivedCOP || total) - total);
+    const change = paymentMethod === "cash" ? Math.max(0, (amountReceivedCOP || total) - total) : 0;
     const nextNum = orders.length + 1;
     const orderNumber = `PED-${String(nextNum).padStart(6, "0")}`;
 
@@ -199,8 +212,10 @@ export const usePosStore = create<PosState>((set, get) => ({
       discountCOP: 0,
       totalCOP: total,
       paymentMethod,
-      amountReceivedCOP: amountReceivedCOP || total,
+      amountReceivedCOP: paymentMethod === "credit" ? 0 : amountReceivedCOP || total,
       changeCOP: change,
+      creditDebtorName: paymentMethod === "credit" ? creditDebtorName || customer.name : undefined,
+      creditAuthorizedBy: paymentMethod === "credit" ? creditAuthorizedBy : undefined,
       status: "CONFIRMED",
       notes: orderNotes || undefined,
     };
@@ -210,6 +225,8 @@ export const usePosStore = create<PosState>((set, get) => ({
       cart: [],
       orderNotes: "",
       amountReceivedCOP: 0,
+      creditDebtorName: "",
+      creditAuthorizedBy: "",
       customer: INITIAL_CUSTOMERS[0],
     });
 

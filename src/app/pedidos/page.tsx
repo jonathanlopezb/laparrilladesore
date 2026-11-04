@@ -183,14 +183,22 @@ export default function PedidosPage() {
                   </div>
 
                   {/* Cliente y Notas */}
-                  <div className="flex justify-between items-center text-xs">
+                  <div className="flex flex-wrap justify-between items-center text-xs gap-1">
                     <p className="text-zinc-300">
                       <strong>Cliente:</strong> {order.customer.name}{" "}
                       {order.customer.phone && <span className="text-zinc-500">({order.customer.phone})</span>}
                     </p>
-                    <p className="text-zinc-400 text-[11px]">
-                      Pago: <span className="font-semibold text-zinc-200 uppercase">{order.paymentMethod}</span>
-                    </p>
+                    <div className="text-[11px]">
+                      {order.paymentMethod === "credit" ? (
+                        <span className="font-bold text-amber-400 bg-amber-500/15 px-2 py-0.5 rounded-lg border border-amber-500/30">
+                          CRÉDITO · Deudor: {order.creditDebtorName || order.customer.name} (Autorizó: {order.creditAuthorizedBy || "Admin"})
+                        </span>
+                      ) : (
+                        <span className="text-zinc-400">
+                          Pago: <span className="font-bold text-zinc-200 uppercase">{order.paymentMethod}</span>
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Platos */}

@@ -31,7 +31,9 @@ import {
   Phone,
   Search,
   X,
+  AlertTriangle,
 } from "lucide-react";
+import { toast } from "sonner";
 
 export default function PosNuevoPedidoPage() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>(OFFICIAL_MENU);
@@ -63,6 +65,8 @@ export default function PosNuevoPedidoPage() {
     customer,
     paymentMethod,
     amountReceivedCOP,
+    creditDebtorName,
+    creditAuthorizedBy,
     orderNotes,
     customersList,
     addItem,
@@ -73,6 +77,7 @@ export default function PosNuevoPedidoPage() {
     setCustomer,
     setPaymentMethod,
     setAmountReceived,
+    setCreditInfo,
     setOrderNotes,
     clearCart,
     submitOrder,
@@ -89,6 +94,18 @@ export default function PosNuevoPedidoPage() {
       : menuItems.filter((m) => m.category === selectedCategory);
 
   const handleFinishOrder = async () => {
+    if (paymentMethod === "credit") {
+      const debtor = (creditDebtorName || customer.name).trim();
+      if (!debtor || debtor === "Cliente General") {
+        toast.error("Para ventas a crédito, debes ingresar el nombre del deudor.");
+        return;
+      }
+      if (!creditAuthorizedBy.trim()) {
+        toast.error("Debes especificar quién autorizó el crédito.");
+        return;
+      }
+    }
+
     const order = submitOrder();
     if (order) {
       setLastCommittedOrder(order);
@@ -590,30 +607,78 @@ export default function PosNuevoPedidoPage() {
               <label className="text-xs font-semibold text-zinc-300">
                 Método de Pago
               </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {(
                   [
-                    { id: "cash", label: "Efectivo" },
-                    { id: "nequi", label: "Nequi" },
-                    { id: "daviplata", label: "Daviplata" },
-                    { id: "card", label: "Tarjeta" },
+                    { id: "cash", label: "💵 Efectivo" },
+                    { id: "nequi", label: "🟣 Nequi" },
+                    { id: "daviplata", label: "🔴 Daviplata" },
+                    { id: "breb", label: "⚡ Bre-B" },
+                    { id: "credit", label: "📋 Crédito (Fiado)" },
                   ] as const
                 ).map((m) => (
                   <button
                     key={m.id}
                     type="button"
-                    onClick={() => setPaymentMethod(m.id)}
+                    onClick={() => {
+                      setPaymentMethod(m.id);
+                      if (m.id === "credit" && !creditDebtorName && customer.name !== "Cliente General") {
+                        setCreditInfo(customer.name, creditAuthorizedBy);
+                      }
+                    }}
                     className={`p-2.5 rounded-xl text-xs font-bold border transition ${
                       paymentMethod === m.id
-                        ? "bg-amber-600 text-white border-amber-500"
-                        : "bg-zinc-900 text-zinc-400 border-zinc-800"
-                    }`}
+                        ? "bg-amber-600 text-white border-amber-500 shadow-md shadow-amber-600/30"
+                        : "bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-white"
+                    } ${m.id === "credit" ? "sm:col-span-2" : ""}`}
                   >
                     {m.label}
                   </button>
                 ))}
               </div>
             </div>
+
+            {/* Si es crédito: Nombre del deudor y quién autorizó */}
+            {paymentMethod === "credit" && (
+              <div className="space-y-3 p-3.5 rounded-xl bg-amber-950/30 border border-amber-900/60 animate-in fade-in">
+                <div className="flex items-center gap-2 text-amber-400 text-xs font-bold">
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
+                  <span>Venta a Crédito / Fiado (Cuenta por cobrar)</span>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs text-zinc-300 font-semibold">
+                    Nombre del Deudor / Cliente *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Nombre completo a quien se le fía"
+                    value={creditDebtorName || (customer.name !== "Cliente General" ? customer.name : "")}
+                    onChange={(e) => setCreditInfo(e.target.value, creditAuthorizedBy)}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs text-zinc-300 font-semibold">
+                    ¿Quién autorizó el crédito? *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ej: Jonathan López (Administrador)"
+                    value={creditAuthorizedBy}
+                    onChange={(e) => setCreditInfo(creditDebtorName || customer.name, e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <p className="text-[11px] text-amber-300/80">
+                  Esta orden se guardará con saldo pendiente y el responsable asignado.
+                </p>
+              </div>
+            )}
 
             {/* Si es efectivo: Valor recibido y cambio */}
             {paymentMethod === "cash" && (
@@ -637,6 +702,14 @@ export default function PosNuevoPedidoPage() {
                     {formatCOP(changeCOP)}
                   </span>
                 </div>
+              </div>
+            )}
+
+            {/* Si es Bre-B, Nequi o Daviplata */}
+            {(paymentMethod === "nequi" || paymentMethod === "daviplata" || paymentMethod === "breb") && (
+              <div className="p-3 rounded-xl bg-zinc-900/60 border border-zinc-800 text-xs text-zinc-300 flex items-center justify-between">
+                <span>Transferencia {paymentMethod.toUpperCase()}:</span>
+                <span className="font-extrabold text-amber-400">{formatCOP(cartTotal)}</span>
               </div>
             )}
 
@@ -710,7 +783,22 @@ export default function PosNuevoPedidoPage() {
 
               <div className="pt-1 text-right space-y-0.5">
                 <p className="text-sm font-extrabold">TOTAL: {formatCOP(lastCommittedOrder.totalCOP)}</p>
-                <p className="text-[10px]">Pago: {lastCommittedOrder.paymentMethod.toUpperCase()}</p>
+                <p className="text-[10px] font-bold">
+                  Pago:{" "}
+                  {lastCommittedOrder.paymentMethod === "credit"
+                    ? "CRÉDITO (PENDIENTE)"
+                    : lastCommittedOrder.paymentMethod.toUpperCase()}
+                </p>
+                {lastCommittedOrder.paymentMethod === "credit" && (
+                  <>
+                    <p className="text-[10px] text-zinc-700">
+                      Deudor: {lastCommittedOrder.creditDebtorName || lastCommittedOrder.customer.name}
+                    </p>
+                    <p className="text-[10px] text-zinc-700">
+                      Autorizó: {lastCommittedOrder.creditAuthorizedBy || "Administrador"}
+                    </p>
+                  </>
+                )}
                 {lastCommittedOrder.changeCOP > 0 && (
                   <p className="text-[10px]">Vueltos: {formatCOP(lastCommittedOrder.changeCOP)}</p>
                 )}

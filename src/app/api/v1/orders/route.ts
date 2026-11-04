@@ -28,9 +28,11 @@ const OrderSchema = z.object({
   subtotalCOP: z.number().int().nonnegative(),
   discountCOP: z.number().int().nonnegative(),
   totalCOP: z.number().int().positive(),
-  paymentMethod: z.enum(["cash", "nequi", "daviplata", "card", "transfer"]),
+  paymentMethod: z.enum(["cash", "nequi", "daviplata", "breb", "credit", "transfer", "card"]),
   amountReceivedCOP: z.number().int().nonnegative(),
   changeCOP: z.number().int().nonnegative(),
+  creditDebtorName: z.string().optional(),
+  creditAuthorizedBy: z.string().optional(),
   status: z.enum(["CONFIRMED", "IN_PREPARATION", "READY", "DELIVERED", "CANCELLED"]),
   notes: z.string().optional(),
 });
