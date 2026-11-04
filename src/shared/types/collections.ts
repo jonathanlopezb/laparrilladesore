@@ -182,6 +182,9 @@ export interface OrderDoc extends BranchScopedDoc {
   orderNumber: string; // "PED-000001"
   status: OrderStatus;
   paymentStatus: PaymentStatus;
+  paymentMethod?: string;
+  creditDebtorName?: string;
+  creditAuthorizedBy?: string;
   channel: OrderChannel;
   customerId?: ObjectId;
   customerName?: string;

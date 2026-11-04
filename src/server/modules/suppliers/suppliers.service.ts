@@ -110,7 +110,7 @@ export async function getSuppliers(): Promise<SupplierItem[]> {
 
     const docs = await col.find({ isActive: true }).sort({ name: 1 }).toArray();
 
-    return docs.map((d) => ({
+    return docs.map((d: any) => ({
       id: d._id.toString(),
       name: d.name,
       taxId: d.taxId,

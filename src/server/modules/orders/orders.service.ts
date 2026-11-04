@@ -15,10 +15,10 @@ export async function getOrders() {
     const col = await collections.orders();
     const docs = await col.find({}).sort({ createdAt: -1 }).limit(50).toArray();
 
-    return docs.map((d) => ({
+    return docs.map((d: any) => ({
       id: d._id.toString(),
       orderNumber: d.orderNumber,
-      createdAt: d.createdAt.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: true }),
+      createdAt: d.createdAt ? new Date(d.createdAt).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: true }) : "Hoy",
       channel: d.channel,
       tableNumber: d.tableNumber,
       deliveryAddress: d.deliveryAddress,
@@ -26,19 +26,19 @@ export async function getOrders() {
         name: d.customerName || "Cliente General",
         phone: d.customerPhone,
       },
-      lines: d.lines.map((l) => ({
-        sku: l.productSnapshot.sku,
-        name: l.productSnapshot.name,
-        unitPriceCOP: l.unitPriceCOP,
-        quantity: l.quantity,
+      lines: (d.lines || []).map((l: any) => ({
+        sku: l.productSnapshot?.sku || l.sku || "SKU",
+        name: l.productSnapshot?.name || l.name || "Plato",
+        unitPriceCOP: l.unitPriceCOP || 0,
+        quantity: l.quantity || 1,
         notes: l.notes,
-        subtotalCOP: l.subtotalCOP,
+        subtotalCOP: l.subtotalCOP || 0,
       })),
-      subtotalCOP: d.subtotalCOP,
-      discountCOP: d.discountCOP,
-      totalCOP: d.totalCOP,
+      subtotalCOP: d.subtotalCOP || 0,
+      discountCOP: d.discountCOP || 0,
+      totalCOP: d.totalCOP || 0,
       paymentMethod: (d.paymentMethod || (d.notes?.includes("PAGO:") ? d.notes.split("PAGO:")[1]?.split("|")[0]?.trim() : "cash")) as any,
-      amountReceivedCOP: d.paidCOP || d.totalCOP,
+      amountReceivedCOP: d.paidCOP || d.totalCOP || 0,
       changeCOP: 0,
       creditDebtorName: d.creditDebtorName,
       creditAuthorizedBy: d.creditAuthorizedBy,
