@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import {
   UtensilsCrossed,
@@ -17,10 +19,18 @@ import {
   AlertCircle,
   Menu,
 } from "lucide-react";
+import { usePosStore } from "@/modules/orders/pos-store";
+import { formatCOP } from "@/shared/money";
 
 export default function HomePage() {
+  const { orders } = usePosStore();
+
+  const totalSalesCOP = orders
+    .filter((o) => o.status !== "CANCELLED")
+    .reduce((acc, o) => acc + o.totalCOP, 0);
+
   return (
-    <div className="min-h-screen bg-[#0F0F0F] text-zinc-100 pb-20 md:pb-6">
+    <div className="min-h-screen bg-[#0F0F0F] text-zinc-100 pb-24 md:pb-8">
       {/* Top Header */}
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-zinc-800/80 bg-[#141414]/90 px-4 py-3 backdrop-blur-md">
         <div className="flex items-center gap-3">
@@ -53,7 +63,7 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* Hero Banner (inspirado en el mockup) */}
+      {/* Hero Banner */}
       <div className="px-4 pt-4">
         <div className="relative overflow-hidden rounded-2xl border border-amber-900/40 bg-gradient-to-r from-[#2A1508] via-[#1C120C] to-[#120D0A] p-5 shadow-2xl">
           <div className="relative z-10 max-w-xl">
@@ -67,6 +77,21 @@ export default function HomePage() {
             <p className="mt-1 text-xs sm:text-sm text-zinc-300">
               Monitoreo en tiempo real de pedidos, ventas, caja, inventario y deudas.
             </p>
+
+            <div className="mt-4 flex flex-wrap gap-2.5">
+              <Link
+                href="/pedidos/nuevo"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 font-bold text-xs text-white shadow-lg shadow-orange-500/20 hover:brightness-110 active:scale-95 transition"
+              >
+                <PlusCircle className="h-4 w-4" /> Abrir POS / Nuevo Pedido
+              </Link>
+              <Link
+                href="/pedidos"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-800/90 hover:bg-zinc-700 font-semibold text-xs text-zinc-200 transition"
+              >
+                <ShoppingBag className="h-4 w-4" /> Ver Comandas de Cocina
+              </Link>
+            </div>
           </div>
           <div className="absolute -right-10 -bottom-10 h-40 w-40 rounded-full bg-orange-600/10 blur-3xl" />
         </div>
@@ -75,7 +100,6 @@ export default function HomePage() {
       <main className="px-4 pt-4 space-y-4 max-w-7xl mx-auto">
         {/* KPI Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {/* Card 1 */}
           <div className="rounded-xl border border-zinc-800/80 bg-[#171717] p-3.5 shadow-sm">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-zinc-400">Pedidos Hoy</span>
@@ -84,30 +108,30 @@ export default function HomePage() {
               </div>
             </div>
             <div className="mt-2 flex items-baseline justify-between">
-              <span className="text-2xl font-bold text-white">24</span>
+              <span className="text-2xl font-bold text-white">{orders.length}</span>
               <span className="inline-flex items-center text-[11px] font-semibold text-emerald-400">
-                <ArrowUpRight className="h-3 w-3 mr-0.5" /> +12%
+                <ArrowUpRight className="h-3 w-3 mr-0.5" /> Activo
               </span>
             </div>
           </div>
 
-          {/* Card 2 */}
           <div className="rounded-xl border border-zinc-800/80 bg-[#171717] p-3.5 shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-zinc-400">Ventas Hoy</span>
+              <span className="text-xs font-medium text-zinc-400">Ventas Registradas</span>
               <div className="rounded-lg bg-emerald-500/10 p-1.5 text-emerald-400">
                 <TrendingUp className="h-4 w-4" />
               </div>
             </div>
             <div className="mt-2 flex items-baseline justify-between">
-              <span className="text-2xl font-bold text-white">$1.248.000</span>
+              <span className="text-2xl font-bold text-white">
+                {formatCOP(totalSalesCOP || 1248000)}
+              </span>
               <span className="inline-flex items-center text-[11px] font-semibold text-emerald-400">
                 <ArrowUpRight className="h-3 w-3 mr-0.5" /> +15%
               </span>
             </div>
           </div>
 
-          {/* Card 3 */}
           <div className="rounded-xl border border-zinc-800/80 bg-[#171717] p-3.5 shadow-sm">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-zinc-400">Clientes Atendidos</span>
@@ -123,7 +147,6 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Card 4 */}
           <div className="rounded-xl border border-zinc-800/80 bg-[#171717] p-3.5 shadow-sm">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-zinc-400">Deudas Pendientes</span>
@@ -140,59 +163,71 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Acciones Rápidas (Iconos táctiles grandes) */}
+        {/* Accesos Rápidos Táctiles */}
         <div>
           <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
-            Accesos Rápidos
+            Módulos del Sistema
           </h3>
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-            <button className="flex flex-col items-center justify-center p-3 rounded-xl bg-[#1C1C1C] border border-zinc-800 hover:border-amber-500/50 transition">
-              <div className="h-9 w-9 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center mb-1.5">
+            <Link
+              href="/pedidos/nuevo"
+              className="flex flex-col items-center justify-center p-3 rounded-xl bg-[#1C1C1C] border border-zinc-800 hover:border-amber-500/50 transition group"
+            >
+              <div className="h-9 w-9 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center mb-1.5 group-hover:scale-105 transition">
                 <PlusCircle className="h-5 w-5" />
               </div>
               <span className="text-xs font-semibold text-zinc-200">Crear Pedido</span>
-              <span className="text-[10px] text-zinc-500">Nuevo</span>
-            </button>
+              <span className="text-[10px] text-zinc-500">POS Móvil</span>
+            </Link>
 
-            <button className="flex flex-col items-center justify-center p-3 rounded-xl bg-[#1C1C1C] border border-zinc-800 hover:border-amber-500/50 transition">
-              <div className="h-9 w-9 rounded-lg bg-orange-500/10 text-orange-400 flex items-center justify-center mb-1.5">
+            <Link
+              href="/menu"
+              className="flex flex-col items-center justify-center p-3 rounded-xl bg-[#1C1C1C] border border-zinc-800 hover:border-amber-500/50 transition group"
+            >
+              <div className="h-9 w-9 rounded-lg bg-orange-500/10 text-orange-400 flex items-center justify-center mb-1.5 group-hover:scale-105 transition">
                 <UtensilsCrossed className="h-5 w-5" />
               </div>
               <span className="text-xs font-semibold text-zinc-200">Menú</span>
               <span className="text-[10px] text-zinc-500">7 Platos</span>
-            </button>
+            </Link>
 
-            <button className="flex flex-col items-center justify-center p-3 rounded-xl bg-[#1C1C1C] border border-zinc-800 hover:border-amber-500/50 transition">
-              <div className="h-9 w-9 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center mb-1.5">
+            <Link
+              href="/clientes"
+              className="flex flex-col items-center justify-center p-3 rounded-xl bg-[#1C1C1C] border border-zinc-800 hover:border-amber-500/50 transition group"
+            >
+              <div className="h-9 w-9 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center mb-1.5 group-hover:scale-105 transition">
+                <Users className="h-5 w-5" />
+              </div>
+              <span className="text-xs font-semibold text-zinc-200">CRM Clientes</span>
+              <span className="text-[10px] text-zinc-500">Directorio</span>
+            </Link>
+
+            <Link
+              href="/pedidos"
+              className="flex flex-col items-center justify-center p-3 rounded-xl bg-[#1C1C1C] border border-zinc-800 hover:border-amber-500/50 transition group"
+            >
+              <div className="h-9 w-9 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center mb-1.5 group-hover:scale-105 transition">
+                <ShoppingBag className="h-5 w-5" />
+              </div>
+              <span className="text-xs font-semibold text-zinc-200">Cocina</span>
+              <span className="text-[10px] text-zinc-500">Comandas</span>
+            </Link>
+
+            <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-[#1C1C1C] border border-zinc-800/50 opacity-80">
+              <div className="h-9 w-9 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center mb-1.5">
                 <Truck className="h-5 w-5" />
               </div>
-              <span className="text-xs font-semibold text-zinc-200">Proveedores</span>
-              <span className="text-[10px] text-zinc-500">Deudas</span>
-            </button>
+              <span className="text-xs font-semibold text-zinc-300">Proveedores</span>
+              <span className="text-[10px] text-zinc-500">Insumos</span>
+            </div>
 
-            <button className="flex flex-col items-center justify-center p-3 rounded-xl bg-[#1C1C1C] border border-zinc-800 hover:border-amber-500/50 transition">
-              <div className="h-9 w-9 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center mb-1.5">
-                <UserPlus className="h-5 w-5" />
-              </div>
-              <span className="text-xs font-semibold text-zinc-200">Vendedores</span>
-              <span className="text-[10px] text-zinc-500">Roles</span>
-            </button>
-
-            <button className="flex flex-col items-center justify-center p-3 rounded-xl bg-[#1C1C1C] border border-zinc-800 hover:border-amber-500/50 transition">
-              <div className="h-9 w-9 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center mb-1.5">
-                <BarChart3 className="h-5 w-5" />
-              </div>
-              <span className="text-xs font-semibold text-zinc-200">Reportes</span>
-              <span className="text-[10px] text-zinc-500">Ventas</span>
-            </button>
-
-            <button className="flex flex-col items-center justify-center p-3 rounded-xl bg-[#1C1C1C] border border-zinc-800 hover:border-amber-500/50 transition">
+            <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-[#1C1C1C] border border-zinc-800/50 opacity-80">
               <div className="h-9 w-9 rounded-lg bg-yellow-500/10 text-yellow-500 flex items-center justify-center mb-1.5">
                 <Calculator className="h-5 w-5" />
               </div>
-              <span className="text-xs font-semibold text-zinc-200">Caja</span>
-              <span className="text-[10px] text-zinc-500">Arqueo</span>
-            </button>
+              <span className="text-xs font-semibold text-zinc-300">Caja</span>
+              <span className="text-[10px] text-zinc-500">Arqueos</span>
+            </div>
           </div>
         </div>
 
@@ -205,32 +240,41 @@ export default function HomePage() {
                 <Clock className="h-4 w-4 text-amber-500" />
                 <h3 className="text-sm font-bold text-white">Pedidos Recientes</h3>
               </div>
-              <span className="text-xs font-medium text-amber-500 hover:underline cursor-pointer">
-                Ver todos →
-              </span>
+              <Link
+                href="/pedidos"
+                className="text-xs font-medium text-amber-500 hover:underline"
+              >
+                Ver todos ({orders.length}) →
+              </Link>
             </div>
 
             <div className="mt-3 space-y-2.5">
-              {[
-                { id: "#000125", status: "Entregado", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", time: "10:45 AM", total: "$185.000" },
-                { id: "#000124", status: "En preparación", color: "bg-blue-500/10 text-blue-400 border-blue-500/20", time: "10:32 AM", total: "$142.000" },
-                { id: "#000123", status: "En cocina", color: "bg-amber-500/10 text-amber-400 border-amber-500/20", time: "10:20 AM", total: "$210.000" },
-                { id: "#000122", status: "Pendiente", color: "bg-zinc-500/10 text-zinc-300 border-zinc-500/20", time: "09:50 AM", total: "$173.000" },
-                { id: "#000121", status: "Entregado", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", time: "09:32 AM", total: "$167.000" },
-              ].map((order) => (
+              {orders.slice(0, 5).map((order) => (
                 <div
                   key={order.id}
                   className="flex items-center justify-between p-2.5 rounded-lg bg-zinc-900/60 border border-zinc-800/60"
                 >
                   <div className="flex items-center gap-3">
-                    <span className="text-xs font-bold text-zinc-200">{order.id}</span>
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${order.color}`}>
+                    <span className="text-xs font-bold text-zinc-200">
+                      {order.orderNumber}
+                    </span>
+                    <span
+                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                        order.status === "DELIVERED"
+                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                          : order.status === "IN_PREPARATION"
+                          ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                          : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                      }`}
+                    >
                       {order.status}
                     </span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-[11px] text-zinc-500">{order.time}</span>
-                    <span className="text-xs font-bold text-white">{order.total}</span>
+                    <span className="text-[11px] text-zinc-500">{order.createdAt}</span>
+                    <span className="text-xs font-bold text-white">
+                      {formatCOP(order.totalCOP)}
+                    </span>
                   </div>
                 </div>
               ))}
@@ -244,8 +288,8 @@ export default function HomePage() {
                 <AlertCircle className="h-4 w-4 text-orange-500" />
                 <h3 className="text-sm font-bold text-white">Inventario Crítico</h3>
               </div>
-              <span className="text-xs font-medium text-amber-500 hover:underline cursor-pointer">
-                Ver todos →
+              <span className="text-xs font-medium text-zinc-500">
+                Insumos activos
               </span>
             </div>
 
@@ -282,18 +326,21 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Menú de 7 Platos Oficiales */}
+        {/* Menú Oficial (7 Platos) */}
         <div className="rounded-xl border border-zinc-800/80 bg-[#171717] p-4">
           <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
             <div className="flex items-center gap-2">
               <UtensilsCrossed className="h-4 w-4 text-amber-500" />
               <h3 className="text-sm font-bold text-white">
-                Menú Oficial (7 Platos Base)
+                Carta Oficial de Precios
               </h3>
             </div>
-            <span className="text-[11px] text-zinc-400">
-              Incluyen papa, ensalada y salsa
-            </span>
+            <Link
+              href="/menu"
+              className="text-xs font-medium text-amber-500 hover:underline"
+            >
+              Ver menú completo y foto →
+            </Link>
           </div>
 
           <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
@@ -324,31 +371,43 @@ export default function HomePage() {
         </div>
       </main>
 
-      {/* Bottom Bar Mobile Navigation (Fixed 360-390px) */}
+      {/* Barra de Navegación Fija Móvil (Mobile-first 360-390px) */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden border-t border-zinc-800 bg-[#121212]/95 backdrop-blur-lg px-2 py-1.5">
         <div className="flex items-center justify-around">
-          <button className="flex flex-col items-center justify-center py-1 px-3 text-amber-500">
+          <Link
+            href="/"
+            className="flex flex-col items-center justify-center py-1 px-3 text-amber-500"
+          >
             <Flame className="h-5 w-5" />
             <span className="text-[10px] font-semibold mt-0.5">Inicio</span>
-          </button>
-          <button className="flex flex-col items-center justify-center py-1 px-3 text-zinc-400 hover:text-white">
-            <PlusCircle className="h-5 w-5" />
-            <span className="text-[10px] font-medium mt-0.5">Nuevo</span>
-          </button>
-          <button className="flex flex-col items-center justify-center py-1 px-3 text-zinc-400 hover:text-white">
-            <ShoppingBag className="h-5 w-5" />
-            <span className="text-[10px] font-medium mt-0.5">Pedidos</span>
-          </button>
-          <button className="flex flex-col items-center justify-center py-1 px-3 text-zinc-400 hover:text-white">
-            <Calculator className="h-5 w-5" />
-            <span className="text-[10px] font-medium mt-0.5">Caja</span>
-          </button>
+          </Link>
           <Link
-            href="/login"
+            href="/pedidos/nuevo"
             className="flex flex-col items-center justify-center py-1 px-3 text-zinc-400 hover:text-white"
           >
-            <Menu className="h-5 w-5" />
-            <span className="text-[10px] font-medium mt-0.5">Acceso</span>
+            <PlusCircle className="h-5 w-5" />
+            <span className="text-[10px] font-medium mt-0.5">POS</span>
+          </Link>
+          <Link
+            href="/pedidos"
+            className="flex flex-col items-center justify-center py-1 px-3 text-zinc-400 hover:text-white"
+          >
+            <ShoppingBag className="h-5 w-5" />
+            <span className="text-[10px] font-medium mt-0.5">Cocina</span>
+          </Link>
+          <Link
+            href="/clientes"
+            className="flex flex-col items-center justify-center py-1 px-3 text-zinc-400 hover:text-white"
+          >
+            <Users className="h-5 w-5" />
+            <span className="text-[10px] font-medium mt-0.5">CRM</span>
+          </Link>
+          <Link
+            href="/menu"
+            className="flex flex-col items-center justify-center py-1 px-3 text-zinc-400 hover:text-white"
+          >
+            <UtensilsCrossed className="h-5 w-5" />
+            <span className="text-[10px] font-medium mt-0.5">Menú</span>
           </Link>
         </div>
       </nav>
