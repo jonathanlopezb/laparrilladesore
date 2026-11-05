@@ -185,7 +185,11 @@ export async function updateSupplier(id: string, data: Partial<Omit<SupplierItem
   try {
     const col = await collections.suppliers();
     if (ObjectId.isValid(id)) {
-      await col.updateOne({ _id: new ObjectId(id) }, { $set: { ...data, updatedAt: new Date() } });
+      const { createdAt, ...cleanData } = data as any;
+      await col.updateOne(
+        { _id: new ObjectId(id) } as any,
+        { $set: { ...cleanData, updatedAt: new Date() } as any }
+      );
     }
     return true;
   } catch (error) {
@@ -204,7 +208,10 @@ export async function deleteSupplier(id: string): Promise<boolean> {
   try {
     const col = await collections.suppliers();
     if (ObjectId.isValid(id)) {
-      await col.updateOne({ _id: new ObjectId(id) }, { $set: { isActive: false, updatedAt: new Date() } });
+      await col.updateOne(
+        { _id: new ObjectId(id) } as any,
+        { $set: { isActive: false, updatedAt: new Date() } as any }
+      );
     }
     return true;
   } catch (error) {

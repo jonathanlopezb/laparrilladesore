@@ -62,14 +62,14 @@ export async function PATCH(req: Request) {
       const col = await collections.customers();
       if (ObjectId.isValid(id)) {
         await col.updateOne(
-          { _id: new ObjectId(id) },
+          { _id: new ObjectId(id) } as any,
           {
             $set: {
               ...(name ? { name } : {}),
               ...(phone !== undefined ? { phone } : {}),
               ...(address !== undefined ? { notes: address } : {}),
               updatedAt: new Date(),
-            },
+            } as any,
           }
         );
       }
@@ -90,7 +90,10 @@ export async function DELETE(req: Request) {
 
     if (process.env.MONGODB_URI && ObjectId.isValid(id)) {
       const col = await collections.customers();
-      await col.updateOne({ _id: new ObjectId(id) }, { $set: { isActive: false, updatedAt: new Date() } });
+      await col.updateOne(
+        { _id: new ObjectId(id) } as any,
+        { $set: { isActive: false, updatedAt: new Date() } as any }
+      );
     }
     return ok({ success: true, id });
   } catch (err) {

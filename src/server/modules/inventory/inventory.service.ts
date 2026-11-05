@@ -258,7 +258,7 @@ export async function updateIngredient(
     if (data.unitCostCOP !== undefined) updateDoc.costCOP = data.unitCostCOP;
     if (data.currentStock !== undefined) updateDoc.currentStock = data.currentStock;
 
-    await col.updateOne(filter, { $set: updateDoc });
+    await col.updateOne(filter as any, { $set: updateDoc as any });
     return true;
   } catch (error) {
     console.error("[InventoryService] Error actualizando insumo:", error);
@@ -276,7 +276,7 @@ export async function deleteIngredient(id: string): Promise<boolean> {
   try {
     const col = await collections.ingredients();
     const filter = ObjectId.isValid(id) ? { _id: new ObjectId(id) } : { sku: id };
-    await col.updateOne(filter, { $set: { isActive: false, updatedAt: new Date() } });
+    await col.updateOne(filter as any, { $set: { isActive: false, updatedAt: new Date() } as any });
     return true;
   } catch (error) {
     console.error("[InventoryService] Error eliminando insumo:", error);
