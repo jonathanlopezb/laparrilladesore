@@ -13,6 +13,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Trash2,
+  Edit3,
+  Save,
   ExternalLink,
   MessageCircle,
 } from "lucide-react";
@@ -23,6 +25,7 @@ export default function ProveedoresPage() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingSupplier, setEditingSupplier] = useState<SupplierItem | null>(null);
   const [saving, setSaving] = useState(false);
   const [successToast, setSuccessToast] = useState("");
 
@@ -104,6 +107,37 @@ export default function ProveedoresPage() {
       }
     } catch (err) {
       console.error("Error eliminando proveedor:", err);
+    }
+  };
+
+  const handleStartEdit = (s: SupplierItem) => {
+    setEditingSupplier(s);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSupplier) return;
+
+    try {
+      setSaving(true);
+      const res = await fetch("/api/v1/suppliers", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editingSupplier),
+      });
+
+      if (res.ok) {
+        setSuppliers((prev) =>
+          prev.map((s) => (s.id === editingSupplier.id ? editingSupplier : s))
+        );
+        setEditingSupplier(null);
+        setSuccessToast(`¡Proveedor ${editingSupplier.name} actualizado en base de datos!`);
+        setTimeout(() => setSuccessToast(""), 3500);
+      }
+    } catch (err) {
+      console.error("Error actualizando proveedor:", err);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -203,13 +237,22 @@ export default function ProveedoresPage() {
                     {s.taxId && <p className="text-[11px] text-zinc-500 font-mono">NIT/CC: {s.taxId}</p>}
                   </div>
 
-                  <button
-                    onClick={() => handleDelete(s.id, s.name)}
-                    className="text-zinc-600 hover:text-rose-500 p-1.5 rounded-lg hover:bg-zinc-800 transition"
-                    title="Dar de baja proveedor"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleStartEdit(s)}
+                      className="text-zinc-500 hover:text-amber-400 p-1.5 rounded-lg hover:bg-zinc-800 transition"
+                      title="Editar proveedor"
+                    >
+                      <Edit3 className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(s.id, s.name)}
+                      className="text-zinc-600 hover:text-rose-500 p-1.5 rounded-lg hover:bg-zinc-800 transition"
+                      title="Dar de baja proveedor"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-1.5 text-xs text-zinc-300 pt-1">
@@ -414,6 +457,134 @@ export default function ProveedoresPage() {
                   className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-extrabold text-xs shadow-lg shadow-amber-500/25 transition active:scale-98 disabled:opacity-50"
                 >
                   {saving ? "Guardando en MongoDB Atlas..." : "Guardar Proveedor"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Editar Proveedor */}
+      {editingSupplier && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-[#171717] border border-zinc-800 rounded-t-2xl sm:rounded-2xl max-w-lg w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-200">
+            <div className="flex items-center justify-between p-4 sm:p-5 border-b border-zinc-800 shrink-0">
+              <h3 className="font-extrabold text-white text-base flex items-center gap-2">
+                <Edit3 className="h-5 w-5 text-amber-500" />
+                Editar Proveedor: {editingSupplier.name}
+              </h3>
+              <button
+                onClick={() => setEditingSupplier(null)}
+                className="h-8 w-8 rounded-full bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-zinc-400"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-zinc-300">Razón Social o Empresa *</label>
+                <input
+                  type="text"
+                  required
+                  value={editingSupplier.name}
+                  onChange={(e) => setEditingSupplier({ ...editingSupplier, name: e.target.value })}
+                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-zinc-300">NIT o Cédula</label>
+                  <input
+                    type="text"
+                    value={editingSupplier.taxId || ""}
+                    onChange={(e) => setEditingSupplier({ ...editingSupplier, taxId: e.target.value })}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-zinc-300">Tipo de Suministro</label>
+                  <input
+                    type="text"
+                    value={editingSupplier.supplyType}
+                    onChange={(e) => setEditingSupplier({ ...editingSupplier, supplyType: e.target.value })}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-zinc-300">Persona de Contacto</label>
+                  <input
+                    type="text"
+                    value={editingSupplier.contactName || ""}
+                    onChange={(e) => setEditingSupplier({ ...editingSupplier, contactName: e.target.value })}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-zinc-300">Celular / WhatsApp *</label>
+                  <input
+                    type="tel"
+                    value={editingSupplier.phone || ""}
+                    onChange={(e) => setEditingSupplier({ ...editingSupplier, phone: e.target.value })}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-zinc-300">Dirección / Bodega</label>
+                  <input
+                    type="text"
+                    value={editingSupplier.address || ""}
+                    onChange={(e) => setEditingSupplier({ ...editingSupplier, address: e.target.value })}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-zinc-300">Plazo de Pago (Días)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editingSupplier.paymentTermsDays || 0}
+                    onChange={(e) => setEditingSupplier({ ...editingSupplier, paymentTermsDays: Number(e.target.value) })}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-zinc-300">Notas u Horario de Despacho</label>
+                <textarea
+                  rows={2}
+                  value={editingSupplier.notes || ""}
+                  onChange={(e) => setEditingSupplier({ ...editingSupplier, notes: e.target.value })}
+                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="pt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingSupplier(null)}
+                  className="flex-1 py-3 rounded-xl bg-zinc-800 text-zinc-400 font-bold text-xs"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="flex-1 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-extrabold text-xs shadow-lg shadow-amber-500/25 flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  <Save className="h-4 w-4" />
+                  {saving ? "Guardando..." : "Actualizar Proveedor"}
                 </button>
               </div>
             </form>

@@ -27,11 +27,12 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const validated = CustomerSchema.parse(body);
+    const newId = new ObjectId();
 
     if (process.env.MONGODB_URI) {
       const col = await collections.customers();
       await col.insertOne({
-        _id: new ObjectId(),
+        _id: newId,
         name: validated.name,
         phone: validated.phone,
         notes: validated.address,
@@ -43,7 +44,55 @@ export async function POST(req: Request) {
       } as any);
     }
 
-    return created(validated);
+    return created({ _id: newId.toString(), ...validated });
+  } catch (err) {
+    return handleError(err);
+  }
+}
+
+export async function PATCH(req: Request) {
+  try {
+    const body = await req.json();
+    const { id, name, phone, address } = body;
+    if (!id) {
+      return handleError(new Error("ID de cliente requerido"));
+    }
+
+    if (process.env.MONGODB_URI) {
+      const col = await collections.customers();
+      if (ObjectId.isValid(id)) {
+        await col.updateOne(
+          { _id: new ObjectId(id) },
+          {
+            $set: {
+              ...(name ? { name } : {}),
+              ...(phone !== undefined ? { phone } : {}),
+              ...(address !== undefined ? { notes: address } : {}),
+              updatedAt: new Date(),
+            },
+          }
+        );
+      }
+    }
+    return ok({ success: true, id });
+  } catch (err) {
+    return handleError(err);
+  }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+    if (!id) {
+      return handleError(new Error("ID de cliente requerido"));
+    }
+
+    if (process.env.MONGODB_URI && ObjectId.isValid(id)) {
+      const col = await collections.customers();
+      await col.updateOne({ _id: new ObjectId(id) }, { $set: { isActive: false, updatedAt: new Date() } });
+    }
+    return ok({ success: true, id });
   } catch (err) {
     return handleError(err);
   }

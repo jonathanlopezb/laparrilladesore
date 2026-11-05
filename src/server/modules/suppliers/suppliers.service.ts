@@ -172,6 +172,28 @@ export async function createSupplier(data: Omit<SupplierItem, "id">): Promise<Su
   }
 }
 
+export async function updateSupplier(id: string, data: Partial<Omit<SupplierItem, "id">>): Promise<boolean> {
+  const idx = memorySuppliers.findIndex((s) => s.id === id);
+  if (idx >= 0) {
+    memorySuppliers[idx] = { ...memorySuppliers[idx], ...data };
+  }
+
+  if (!process.env.MONGODB_URI) {
+    return true;
+  }
+
+  try {
+    const col = await collections.suppliers();
+    if (ObjectId.isValid(id)) {
+      await col.updateOne({ _id: new ObjectId(id) }, { $set: { ...data, updatedAt: new Date() } });
+    }
+    return true;
+  } catch (error) {
+    console.error("[SuppliersService] Error actualizando proveedor en DB:", error);
+    return false;
+  }
+}
+
 export async function deleteSupplier(id: string): Promise<boolean> {
   memorySuppliers = memorySuppliers.filter((s) => s.id !== id);
 

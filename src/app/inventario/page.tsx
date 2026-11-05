@@ -20,6 +20,9 @@ import {
   History,
   FileText,
   Calendar,
+  Edit3,
+  Trash2,
+  Save,
 } from "lucide-react";
 import type { InventoryItem, StockMovementRecord } from "@/server/modules/inventory/inventory.service";
 import { formatCOP } from "@/shared/money";
@@ -38,6 +41,8 @@ export default function InventarioPage() {
   const [activeTab, setActiveTab] = useState<"stock" | "history">("stock");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
+
+  // Modal Movimiento / Compra
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [movementType, setMovementType] = useState<"IN_PURCHASE" | "OUT_WASTE" | "ADJUSTMENT">("IN_PURCHASE");
@@ -46,6 +51,25 @@ export default function InventarioPage() {
   const [selectedSupplier, setSelectedSupplier] = useState<string>("Avícola La Granja Campesina");
   const [customSupplier, setCustomSupplier] = useState<string>("");
   const [reason, setReason] = useState("");
+
+  // Modal Crear Nuevo Insumo
+  const [isNewIngredientModalOpen, setIsNewIngredientModalOpen] = useState(false);
+  const [newSku, setNewSku] = useState("");
+  const [newName, setNewName] = useState("");
+  const [newCategory, setNewCategory] = useState<"carnes" | "verduras" | "bebidas" | "insumos" | "empaques">("carnes");
+  const [newUnit, setNewUnit] = useState("kg");
+  const [newMinStock, setNewMinStock] = useState<number>(10);
+  const [newUnitCost, setNewUnitCost] = useState<number>(0);
+  const [newInitialStock, setNewInitialStock] = useState<number>(0);
+
+  // Modal Editar Insumo
+  const [editingIngredient, setEditingIngredient] = useState<InventoryItem | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editCategory, setEditCategory] = useState<"carnes" | "verduras" | "bebidas" | "insumos" | "empaques">("carnes");
+  const [editUnit, setEditUnit] = useState("");
+  const [editMinStock, setEditMinStock] = useState<number>(0);
+  const [editUnitCost, setEditUnitCost] = useState<number>(0);
+
   const [submitting, setSubmitting] = useState(false);
   const [successToast, setSuccessToast] = useState("");
 
@@ -152,6 +176,114 @@ export default function InventarioPage() {
     }
   };
 
+  const handleCreateIngredient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSku.trim() || !newName.trim()) return;
+
+    try {
+      setSubmitting(true);
+      const res = await fetch("/api/v1/inventory", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create_ingredient",
+          sku: newSku.toUpperCase().trim(),
+          name: newName.trim(),
+          category: newCategory,
+          unit: newUnit.trim(),
+          minStock: Number(newMinStock),
+          unitCostCOP: Number(newUnitCost),
+          initialStock: Number(newInitialStock),
+        }),
+      });
+
+      if (res.ok) {
+        setIsNewIngredientModalOpen(false);
+        setNewSku("");
+        setNewName("");
+        setNewMinStock(10);
+        setNewUnitCost(0);
+        setNewInitialStock(0);
+        setSuccessToast(`¡Insumo "${newName}" creado en MongoDB Atlas!`);
+        setTimeout(() => setSuccessToast(""), 4000);
+        await loadData();
+      }
+    } catch (err) {
+      console.error("Error creando insumo:", err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleStartEditIngredient = (item: InventoryItem) => {
+    setEditingIngredient(item);
+    setEditName(item.name);
+    setEditCategory(item.category);
+    setEditUnit(item.unit);
+    setEditMinStock(item.minStock);
+    setEditUnitCost(item.unitCostCOP);
+  };
+
+  const handleSaveEditIngredient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingIngredient || !editName.trim()) return;
+
+    try {
+      setSubmitting(true);
+      const res = await fetch("/api/v1/inventory", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editingIngredient.id,
+          name: editName.trim(),
+          category: editCategory,
+          unit: editUnit.trim(),
+          minStock: Number(editMinStock),
+          unitCostCOP: Number(editUnitCost),
+        }),
+      });
+
+      if (res.ok) {
+        setItems((prev) =>
+          prev.map((i) =>
+            i.id === editingIngredient.id
+              ? {
+                  ...i,
+                  name: editName.trim(),
+                  category: editCategory,
+                  unit: editUnit.trim(),
+                  minStock: Number(editMinStock),
+                  unitCostCOP: Number(editUnitCost),
+                }
+              : i
+          )
+        );
+        setEditingIngredient(null);
+        setSuccessToast(`¡Insumo "${editName}" actualizado en MongoDB!`);
+        setTimeout(() => setSuccessToast(""), 3500);
+      }
+    } catch (err) {
+      console.error("Error actualizando insumo:", err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteIngredient = async (item: InventoryItem) => {
+    if (!confirm(`¿Estás seguro de eliminar el insumo "${item.name}" (${item.sku}) de la base de datos?`)) return;
+
+    try {
+      const res = await fetch(`/api/v1/inventory?id=${item.id}`, { method: "DELETE" });
+      if (res.ok) {
+        setItems((prev) => prev.filter((i) => i.id !== item.id));
+        setSuccessToast(`¡Insumo "${item.name}" eliminado de la base de datos!`);
+        setTimeout(() => setSuccessToast(""), 3500);
+      }
+    } catch (err) {
+      console.error("Error eliminando insumo:", err);
+    }
+  };
+
   const filtered = items.filter((item) => {
     const matchesCategory = categoryFilter === "all" || item.category === categoryFilter;
     const matchesSearch =
@@ -164,7 +296,6 @@ export default function InventarioPage() {
   const lowStockCount = items.filter((i) => i.currentStock <= i.minStock).length;
   const totalValuation = items.reduce((acc, curr) => acc + curr.currentStock * curr.unitCostCOP, 0);
 
-  // Total gastado / invertido en compras registradas
   const totalPurchasesCost = movements
     .filter((m) => m.movementType === "IN_PURCHASE" && m.totalCostCOP)
     .reduce((acc, curr) => acc + (curr.totalCostCOP || 0), 0);
@@ -192,17 +323,24 @@ export default function InventarioPage() {
               Control de Inventario y Compras
             </h1>
             <p className="text-xs text-zinc-400">
-              Insumos, compras a proveedores/tiendas y costos sincronizados en MongoDB Atlas
+              CRUD completo de insumos, compras a proveedores/tiendas y costos sincronizados en MongoDB Atlas
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
-            onClick={() => handleOpenMovementModal(undefined, "IN_PURCHASE")}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white font-extrabold text-xs shadow-lg shadow-emerald-600/25 active:scale-95 transition"
+            onClick={() => setIsNewIngredientModalOpen(true)}
+            className="flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-extrabold text-xs shadow-lg shadow-amber-600/25 active:scale-95 transition"
           >
             <Plus className="h-4 w-4" />
+            + Nuevo Insumo
+          </button>
+          <button
+            onClick={() => handleOpenMovementModal(undefined, "IN_PURCHASE")}
+            className="flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white font-extrabold text-xs shadow-lg shadow-emerald-600/25 active:scale-95 transition"
+          >
+            <ArrowUpDown className="h-4 w-4" />
             + Registrar Compra
           </button>
           <button
@@ -336,6 +474,12 @@ export default function InventarioPage() {
             <div className="p-8 rounded-2xl bg-[#141414] border border-zinc-800 text-center space-y-2">
               <Package className="h-10 w-10 text-zinc-600 mx-auto" />
               <p className="text-sm font-bold text-zinc-300">No hay insumos en esta categoría</p>
+              <button
+                onClick={() => setIsNewIngredientModalOpen(true)}
+                className="mt-2 text-xs font-bold text-amber-500 hover:underline"
+              >
+                + Crear el primer insumo
+              </button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -362,15 +506,31 @@ export default function InventarioPage() {
                           </span>
                         </div>
 
-                        <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                            isLow
-                              ? "bg-rose-500/10 text-rose-400 border-rose-500/30"
-                              : "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                          }`}
-                        >
-                          {isLow ? "Crítico" : "Óptimo"}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                              isLow
+                                ? "bg-rose-500/10 text-rose-400 border-rose-500/30"
+                                : "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                            }`}
+                          >
+                            {isLow ? "Crítico" : "Óptimo"}
+                          </span>
+                          <button
+                            onClick={() => handleStartEditIngredient(item)}
+                            className="p-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white"
+                            title="Editar insumo"
+                          >
+                            <Edit3 className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteIngredient(item)}
+                            className="p-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400"
+                            title="Eliminar insumo"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </div>
 
                       <div className="p-3 rounded-xl bg-black/40 border border-zinc-800/60 space-y-2">
@@ -509,7 +669,6 @@ export default function InventarioPage() {
       {isModalOpen && selectedItem && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="bg-[#171717] border border-zinc-800 rounded-t-2xl sm:rounded-2xl max-w-md w-full max-h-[92vh] flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-200 overflow-hidden">
-            {/* Cabecera modal */}
             <div className="flex items-center justify-between p-4 sm:p-5 pb-3 border-b border-zinc-800 shrink-0">
               <h3 className="font-extrabold text-white text-base flex items-center gap-2">
                 <ArrowUpDown className="h-5 w-5 text-amber-500" />
@@ -523,9 +682,7 @@ export default function InventarioPage() {
               </button>
             </div>
 
-            {/* Contenido con scroll */}
             <form onSubmit={handleSubmitMovement} className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
-              {/* Tipo de Operación */}
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-zinc-300">Tipo de Operación</label>
                 <div className="grid grid-cols-2 gap-2">
@@ -554,7 +711,6 @@ export default function InventarioPage() {
                 </div>
               </div>
 
-              {/* Insumo a Modificar */}
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-zinc-300">Insumo a Comprar / Modificar *</label>
                 <select
@@ -570,7 +726,6 @@ export default function InventarioPage() {
                 </select>
               </div>
 
-              {/* DESPLEGABLE DE PROVEEDOR O TIENDA (SOLO EN COMPRAS) */}
               {movementType === "IN_PURCHASE" && (
                 <div className="space-y-3 p-3.5 rounded-xl bg-zinc-900/70 border border-zinc-800">
                   <div className="space-y-1">
@@ -601,7 +756,6 @@ export default function InventarioPage() {
                     </select>
                   </div>
 
-                  {/* Campo si elige tienda personalizada */}
                   {selectedSupplier === "custom" && (
                     <div className="space-y-1 animate-in fade-in">
                       <label className="text-[11px] text-zinc-300 font-semibold">
@@ -618,7 +772,6 @@ export default function InventarioPage() {
                     </div>
                   )}
 
-                  {/* Costos e Inversión */}
                   <div className="grid grid-cols-2 gap-2 pt-1">
                     <div className="space-y-1">
                       <label className="text-[11px] text-zinc-300 font-semibold">
@@ -645,7 +798,6 @@ export default function InventarioPage() {
                 </div>
               )}
 
-              {/* Cantidad */}
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-zinc-300">
                   Cantidad a ingresar ({selectedItem.unit}) *
@@ -662,7 +814,6 @@ export default function InventarioPage() {
                 />
               </div>
 
-              {/* Motivo o Factura */}
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-zinc-300">N° Factura / Nota / Observación</label>
                 <input
@@ -674,7 +825,6 @@ export default function InventarioPage() {
                 />
               </div>
 
-              {/* Botón Guardar fijo */}
               <div className="pt-2">
                 <button
                   type="submit"
@@ -686,6 +836,235 @@ export default function InventarioPage() {
                     : movementType === "IN_PURCHASE"
                     ? `Confirmar Compra (${formatCOP(Math.round((quantity || 0) * (unitCost || 0)))})`
                     : "Confirmar Salida de Stock"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Crear Nuevo Insumo (CRUD) */}
+      {isNewIngredientModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-[#171717] border border-zinc-800 rounded-t-2xl sm:rounded-2xl max-w-md w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between p-4 sm:p-5 border-b border-zinc-800 shrink-0">
+              <h3 className="font-extrabold text-white text-base flex items-center gap-2">
+                <Plus className="h-5 w-5 text-amber-500" />
+                Crear Nuevo Insumo en Base de Datos
+              </h3>
+              <button
+                onClick={() => setIsNewIngredientModalOpen(false)}
+                className="h-8 w-8 rounded-full bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-zinc-400"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateIngredient} className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3.5">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-zinc-300">Código / SKU *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ej: INS-010"
+                    value={newSku}
+                    onChange={(e) => setNewSku(e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500 font-mono font-bold"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-zinc-300">Categoría</label>
+                  <select
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value as any)}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-2 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                  >
+                    <option value="carnes">Carnes</option>
+                    <option value="verduras">Papas y Verduras</option>
+                    <option value="insumos">Salsas y Carbón</option>
+                    <option value="empaques">Empaques</option>
+                    <option value="bebidas">Bebidas</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-zinc-300">Nombre del Insumo *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ej: Costilla de Cerdo / Yuca al Vapor"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-zinc-300">Unidad de Medida *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="kg, unidades, presas, litros..."
+                    value={newUnit}
+                    onChange={(e) => setNewUnit(e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-zinc-300">Stock Mínimo (Alerta) *</label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={newMinStock}
+                    onChange={(e) => setNewMinStock(Number(e.target.value))}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-zinc-300">Costo Unitario Base (COP)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={newUnitCost || ""}
+                    onChange={(e) => setNewUnitCost(Number(e.target.value))}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-zinc-300">Stock Inicial</label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={newInitialStock || ""}
+                    onChange={(e) => setNewInitialStock(Number(e.target.value))}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-extrabold text-xs shadow-lg shadow-amber-500/25 transition active:scale-98 disabled:opacity-50"
+                >
+                  {submitting ? "Creando en MongoDB..." : "+ Guardar Insumo en Base de Datos"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Editar Insumo (CRUD) */}
+      {editingIngredient && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-[#171717] border border-zinc-800 rounded-t-2xl sm:rounded-2xl max-w-md w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between p-4 sm:p-5 border-b border-zinc-800 shrink-0">
+              <h3 className="font-extrabold text-white text-base flex items-center gap-2">
+                <Edit3 className="h-5 w-5 text-amber-500" />
+                Editar Insumo: {editingIngredient.sku}
+              </h3>
+              <button
+                onClick={() => setEditingIngredient(null)}
+                className="h-8 w-8 rounded-full bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-zinc-400"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditIngredient} className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3.5">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-zinc-300">Nombre del Insumo *</label>
+                <input
+                  type="text"
+                  required
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-zinc-300">Categoría</label>
+                  <select
+                    value={editCategory}
+                    onChange={(e) => setEditCategory(e.target.value as any)}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-2 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                  >
+                    <option value="carnes">Carnes</option>
+                    <option value="verduras">Papas y Verduras</option>
+                    <option value="insumos">Salsas y Carbón</option>
+                    <option value="empaques">Empaques</option>
+                    <option value="bebidas">Bebidas</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-zinc-300">Unidad de Medida</label>
+                  <input
+                    type="text"
+                    required
+                    value={editUnit}
+                    onChange={(e) => setEditUnit(e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-zinc-300">Stock Mínimo (Alerta)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={editMinStock}
+                    onChange={(e) => setEditMinStock(Number(e.target.value))}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-zinc-300">Costo Unit. (COP)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editUnitCost}
+                    onChange={(e) => setEditUnitCost(Number(e.target.value))}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingIngredient(null)}
+                  className="flex-1 py-3 rounded-xl bg-zinc-800 text-zinc-400 font-bold text-xs"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="flex-1 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-extrabold text-xs shadow-lg shadow-amber-500/25 flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  <Save className="h-4 w-4" />
+                  {submitting ? "Guardando..." : "Actualizar Insumo"}
                 </button>
               </div>
             </form>

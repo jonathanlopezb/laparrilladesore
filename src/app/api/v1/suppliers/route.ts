@@ -1,5 +1,5 @@
 import { ok, created, handleError } from "@/server/http/response";
-import { getSuppliers, createSupplier, deleteSupplier } from "@/server/modules/suppliers/suppliers.service";
+import { getSuppliers, createSupplier, updateSupplier, deleteSupplier } from "@/server/modules/suppliers/suppliers.service";
 import { z } from "zod";
 
 const SupplierSchema = z.object({
@@ -32,6 +32,20 @@ export async function POST(req: Request) {
       isActive: true,
     });
     return created(supplier);
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
+export async function PATCH(req: Request) {
+  try {
+    const body = await req.json();
+    const { id, ...data } = body;
+    if (!id) {
+      return handleError(new Error("ID de proveedor requerido"));
+    }
+    await updateSupplier(id, data);
+    return ok({ success: true, id });
   } catch (error) {
     return handleError(error);
   }

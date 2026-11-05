@@ -47,6 +47,7 @@ export default function MenuPage() {
 
   // Edición en línea
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState<string>("");
   const [editPrice, setEditPrice] = useState<number>(0);
   const [editDesc, setEditDesc] = useState<string>("");
 
@@ -136,6 +137,7 @@ export default function MenuPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: item._id,
+          name: editName.trim() || item.name,
           priceCOP: editPrice,
           description: editDesc,
         }),
@@ -143,14 +145,31 @@ export default function MenuPage() {
 
       setItems((prev) =>
         prev.map((i) =>
-          i._id === item._id ? { ...i, priceCOP: editPrice, description: editDesc } : i
+          i._id === item._id
+            ? { ...i, name: editName.trim() || item.name, priceCOP: editPrice, description: editDesc }
+            : i
         )
       );
 
       setEditingId(null);
-      toast.success(`Precio y descripción de ${item.name} actualizados en BD.`);
+      toast.success(`Plato ${editName || item.name} actualizado en base de datos.`);
     } catch (err) {
       toast.error("Error actualizando plato.");
+    }
+  };
+
+  const handleDeleteMenuItem = async (item: MenuItemDTO) => {
+    if (!confirm(`¿Eliminar el plato "${item.name}" de la carta y la base de datos?`)) return;
+    try {
+      const res = await fetch(`/api/v1/menu-items?id=${item._id || item.sku}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setItems((prev) => prev.filter((i) => i._id !== item._id && i.sku !== item.sku));
+        toast.success(`Plato ${item.name} eliminado.`);
+      }
+    } catch (err) {
+      toast.error("Error al eliminar plato.");
     }
   };
 
@@ -429,60 +448,92 @@ export default function MenuPage() {
 
                   {/* Edición o Vista */}
                   {isEditing ? (
-                    <div className="space-y-3 p-3 rounded-xl bg-zinc-900 border border-zinc-700">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className="space-y-3 p-3.5 rounded-xl bg-zinc-900 border border-zinc-700">
+                      <div className="space-y-2">
                         <div>
-                          <label className="text-[11px] text-zinc-400">Nuevo Precio (COP)</label>
+                          <label className="text-[11px] text-zinc-400 font-semibold">Nombre del Plato</label>
                           <input
-                            type="number"
-                            value={editPrice}
-                            onChange={(e) => setEditPrice(Number(e.target.value))}
+                            type="text"
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
                             className="w-full bg-black/60 border border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-bold"
                           />
                         </div>
-                        <div>
-                          <label className="text-[11px] text-zinc-400">Descripción</label>
-                          <input
-                            type="text"
-                            value={editDesc}
-                            onChange={(e) => setEditDesc(e.target.value)}
-                            className="w-full bg-black/60 border border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs text-zinc-300"
-                          />
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[11px] text-zinc-400 font-semibold">Precio (COP)</label>
+                            <input
+                              type="number"
+                              value={editPrice}
+                              onChange={(e) => setEditPrice(Number(e.target.value))}
+                              className="w-full bg-black/60 border border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-bold"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[11px] text-zinc-400 font-semibold">Descripción / Porción</label>
+                            <input
+                              type="text"
+                              value={editDesc}
+                              onChange={(e) => setEditDesc(e.target.value)}
+                              className="w-full bg-black/60 border border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs text-zinc-300"
+                            />
+                          </div>
                         </div>
                       </div>
 
-                      <div className="flex justify-end gap-2 pt-1">
+                      <div className="flex items-center justify-between pt-1">
                         <button
-                          onClick={() => setEditingId(null)}
-                          className="px-3 py-1 rounded-lg bg-zinc-800 text-xs font-semibold text-zinc-400"
+                          type="button"
+                          onClick={() => handleDeleteMenuItem(item)}
+                          className="px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-semibold flex items-center gap-1"
                         >
-                          Cancelar
+                          <Trash2 className="h-3.5 w-3.5" /> Eliminar Plato
                         </button>
-                        <button
-                          onClick={() => handleSaveEdit(item)}
-                          className="px-3 py-1 rounded-lg bg-emerald-600 text-xs font-bold text-white flex items-center gap-1"
-                        >
-                          <Save className="h-3.5 w-3.5" /> Guardar en BD
-                        </button>
+
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setEditingId(null)}
+                            className="px-3 py-1 rounded-lg bg-zinc-800 text-xs font-semibold text-zinc-400"
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSaveEdit(item)}
+                            className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white flex items-center gap-1"
+                          >
+                            <Save className="h-3.5 w-3.5" /> Guardar en BD
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ) : (
                     <div className="flex items-center justify-between text-xs pt-1">
                       <p className="text-zinc-400 text-[11px]">{item.description}</p>
-                      <div className="flex items-center gap-3">
-                        <span className="text-base font-black text-amber-400">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base font-black text-amber-400 mr-1">
                           {formatCOP(item.priceCOP)}
                         </span>
                         <button
                           onClick={() => {
                             setEditingId(item._id);
+                            setEditName(item.name);
                             setEditPrice(item.priceCOP);
                             setEditDesc(item.description);
                           }}
                           className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
-                          title="Editar precio o descripción"
+                          title="Editar plato"
                         >
                           <Edit3 className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteMenuItem(item)}
+                          className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400"
+                          title="Eliminar plato"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </div>
                     </div>

@@ -169,6 +169,121 @@ export async function getInventory(): Promise<InventoryItem[]> {
   }
 }
 
+export async function createIngredient(data: {
+  sku: string;
+  name: string;
+  category: "carnes" | "verduras" | "bebidas" | "insumos" | "empaques";
+  unit: string;
+  minStock: number;
+  unitCostCOP: number;
+  initialStock?: number;
+}): Promise<InventoryItem> {
+  const newItem: InventoryItem = {
+    id: new ObjectId().toString(),
+    sku: data.sku.toUpperCase().trim(),
+    name: data.name.trim(),
+    category: data.category,
+    unit: data.unit.trim(),
+    currentStock: Number(data.initialStock || 0),
+    minStock: Number(data.minStock || 0),
+    unitCostCOP: Number(data.unitCostCOP || 0),
+    lastUpdated: new Date().toISOString(),
+  };
+
+  memoryInventory.push(newItem);
+
+  if (!process.env.MONGODB_URI) {
+    return newItem;
+  }
+
+  try {
+    const col = await collections.ingredients();
+    const doc = {
+      _id: new ObjectId(newItem.id),
+      sku: newItem.sku,
+      name: newItem.name,
+      baseUnit: newItem.unit,
+      currentStock: newItem.currentStock,
+      minStock: newItem.minStock,
+      costCOP: newItem.unitCostCOP,
+      category: newItem.category,
+      isActive: true,
+      branchId: new ObjectId("000000000000000000000000"),
+      createdBy: new ObjectId("000000000000000000000000"),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    await col.insertOne(doc as any);
+    return newItem;
+  } catch (error) {
+    console.error("[InventoryService] Error creando insumo en DB:", error);
+    return newItem;
+  }
+}
+
+export async function updateIngredient(
+  id: string,
+  data: Partial<{
+    name: string;
+    sku: string;
+    category: "carnes" | "verduras" | "bebidas" | "insumos" | "empaques";
+    unit: string;
+    minStock: number;
+    unitCostCOP: number;
+    currentStock: number;
+  }>
+): Promise<boolean> {
+  const itemIndex = memoryInventory.findIndex((i) => i.id === id || i.sku === id);
+  if (itemIndex >= 0) {
+    memoryInventory[itemIndex] = {
+      ...memoryInventory[itemIndex],
+      ...data,
+      lastUpdated: new Date().toISOString(),
+    };
+  }
+
+  if (!process.env.MONGODB_URI) {
+    return true;
+  }
+
+  try {
+    const col = await collections.ingredients();
+    const filter = ObjectId.isValid(id) ? { _id: new ObjectId(id) } : { sku: id };
+    const updateDoc: any = { updatedAt: new Date() };
+
+    if (data.name !== undefined) updateDoc.name = data.name;
+    if (data.category !== undefined) updateDoc.category = data.category;
+    if (data.unit !== undefined) updateDoc.baseUnit = data.unit;
+    if (data.minStock !== undefined) updateDoc.minStock = data.minStock;
+    if (data.unitCostCOP !== undefined) updateDoc.costCOP = data.unitCostCOP;
+    if (data.currentStock !== undefined) updateDoc.currentStock = data.currentStock;
+
+    await col.updateOne(filter, { $set: updateDoc });
+    return true;
+  } catch (error) {
+    console.error("[InventoryService] Error actualizando insumo:", error);
+    return false;
+  }
+}
+
+export async function deleteIngredient(id: string): Promise<boolean> {
+  memoryInventory = memoryInventory.filter((i) => i.id !== id && i.sku !== id);
+
+  if (!process.env.MONGODB_URI) {
+    return true;
+  }
+
+  try {
+    const col = await collections.ingredients();
+    const filter = ObjectId.isValid(id) ? { _id: new ObjectId(id) } : { sku: id };
+    await col.updateOne(filter, { $set: { isActive: false, updatedAt: new Date() } });
+    return true;
+  } catch (error) {
+    console.error("[InventoryService] Error eliminando insumo:", error);
+    return false;
+  }
+}
+
 export async function recordStockMovement(data: {
   ingredientId: string;
   movementType: "IN_PURCHASE" | "OUT_WASTE" | "OUT_SALE" | "ADJUSTMENT";
